@@ -108,3 +108,17 @@ Additional native process acceptance: a disposable, project-built IOPM assertion
 - 源码、MIT License、README 与手动触发 `Build DMG` 的 Actions 工作流已发布到 [bennie-asi/sleepguard](https://github.com/bennie-asi/sleepguard)。发布标签对应 `eb2a15046f6489cef3084a4532b6ce33ef43dbe9`。
 
 CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚未执行 Intel 原生窗口与 macOS 13–14 的交互验收。Developer ID、公证和真实 Telegram 投递仍未配置或执行；临时签名更新后的旧钥匙串条目可能仍需一次原生授权。菜单栏完整点击验收、逐屏像素与热插拔、真实锁屏和 Finder 拖拽安装保持前述未验证范围。
+
+## 0.3.3 — 后台启动与暂停恢复（2026-10-10）
+
+- 点击启动后，旧版服务虽已注册，`launchctl` 回读 `OS_REASON_CODESIGNING`、`spawn failed`；系统日志确认 `Launch Constraint Violation`，Go watcher 锁未持有，运行日志未更新。应用与内置 Go 的严格签名校验仍通过。
+- 独立测试的临时签名 SMAppService agent 首次可启动；更换 helper 签名后再次注册被相同约束拒绝。因此默认临时签名构建使用既有、关联 `io.sleepguard.app` 的 LaunchAgent；Developer ID 构建保留 SMAppService，并使用独立签名的 `SleepGuardMonitor`。没有重置系统全部后台记录或改动系统安全设置。
+- 构建在新的目录完成编译、逐项签名和校验后才替换 `.app`；构建失败保留旧包。嵌套 monitor 入口在私有临时目录调用内置 Go 的配置查询成功，未写入默认配置或接触凭据。
+- 最终修复版原生状态页点击“启动后台”成功；`launchctl` 确认服务运行及 PID，CLI 回读 `watcher_running=true`。运行日志新增真实采样。
+- 原生状态页和菜单共用运行、暂停、未启动状态。暂停 30 分钟后立即显示黄色暂停图标、恢复时间、“立即恢复”，暂停按钮消失；点击恢复后显示绿色运行状态，只保留暂停操作。
+- 暂停记录保留而后台停止时，页面仍显示暂停及“后台未运行，可恢复并启动”；点击“恢复并启动”后进程与提醒、处理一起恢复，暂停时间回读清空。
+- 实测普通 LaunchAgent 使用兼容标识时，SMAppService.status 也可能返回启用，但直接注销报 `Requestor lacks required entitlement`。修复为仅注销实际由 ServiceManagement 托管的任务；修复版设置页“停止后台”成功，CLI 回读 `watcher_running=false`、`service_installed=false`。
+- 菜单“查看完整状态”实测关闭菜单并打开管理窗口。菜单暂停显示及管理页恢复按钮均完成交互验收；本轮没有逐项重测其他导航入口。
+- `make check-ui` 通过，新增暂停优先级、后台关闭时恢复、暂停到期检查；原有后台命令、时间与快捷键检查仍通过。Go race 与 vet 通过。
+
+本轮未验证 Developer ID 下的实际服务注册、Intel 原生交互、重新登录和跨夜休眠；没有结束用户应用或发送 Telegram 消息。

@@ -75,6 +75,7 @@ import UserNotifications
     @Published private(set) var serviceOperation: ServiceOperation?
     @Published private(set) var refreshing = false
     @Published private(set) var refreshFailure: String?
+    @Published private(set) var serviceFailure: String?
     @Published private(set) var refreshingHistory = false
     @Published private(set) var quitting = false
     @Published var permission: UNAuthorizationStatus = .notDetermined
@@ -88,6 +89,7 @@ import UserNotifications
     private var savedMonitor: MonitorConfig?
     private var savedActions: ActionConfig?
     private var started = false
+    private var statusRevision = 0
 
     var dirtyRules: Bool { rules != savedRules || autoActions != savedAutoActions }
     var dirtySettings: Bool { monitor != savedMonitor || actions != savedActions }
@@ -110,14 +112,31 @@ import UserNotifications
     var permissionText: String {
         switch permission { case .authorized, .provisional: "已授权"; case .denied: "权限已关闭"; default: "尚未授权" }
     }
-    var menuSymbol: String { status?.watcherRunning != true ? "moon.zzz" : status?.paused == true ? "pause.circle" : status?.assessment.eligible == true ? "exclamationmark.circle" : "moon.stars" }
+    var monitoringState: MonitoringState { MonitoringState(watcherRunning: status?.watcherRunning, pausedUntil: status?.pausedDate) }
+    var menuSymbol: String {
+        switch monitoringState {
+        case .paused: "pause.circle"
+        case .running: status?.assessment.eligible == true ? "exclamationmark.circle" : "moon.stars"
+        case .stopped, .unavailable: "moon.zzz"
+        }
+    }
     var headline: String {
-        guard let status else { return refreshFailure == nil ? "正在读取状态…" : "暂时无法读取状态" }
         if let serviceOperation { return serviceOperation.title }
-        if !status.watcherRunning { return "后台服务未运行" }
-        if status.paused { return "提醒与处理已暂停" }
-        if status.assessment.eligible { return applicationCandidates.isEmpty ? "有休眠请求需要关注" : "\(applicationCandidates.count) 个应用需要关注" }
-        return "暂未发现休眠异常"
+        if status == nil, refreshFailure != nil { return "暂时无法读取状态" }
+        return monitoringState.title
+    }
+    var monitoringDetail: String {
+        if serviceOperation != nil { return "正在确认后台运行状态…" }
+        if let serviceFailure { return serviceFailure }
+        guard let status else { return "正在读取…" }
+        switch monitoringState {
+        case .paused:
+            return "暂停至 \(ClockText.time(status.pausedUntil))。" + (status.watcherRunning ? "继续采样，可提前恢复。" : "后台未运行，可恢复并启动。")
+        case .stopped: return "启动后持续检查，关闭窗口后仍会监控。"
+        case .running:
+            return (status.assessment.eligible && !applicationCandidates.isEmpty ? "\(applicationCandidates.count) 个应用需要关注。" : "") + status.assessment.reason
+        case .unavailable: return "正在读取…"
+        }
     }
     var historyGroups: [HistoryGroup] {
         var groups: [HistoryGroup] = [], indices: [String: Int] = [:]
@@ -158,16 +177,19 @@ import UserNotifications
     }
     func refresh(userInitiated: Bool = false) async {
         guard !refreshing, serviceOperation == nil, !quitting else { return }; refreshing = true; defer { refreshing = false }
+        let revision = statusRevision
         do {
             let latest = try await backend.status()
             let envelope = try await backend.configuration()
-            guard serviceOperation == nil, !quitting else { return }
+            guard serviceOperation == nil, !quitting, revision == statusRevision else { return }
             status = latest
             load(envelope.config, resetRules: !dirtyRules, resetSettings: !dirtySettings)
             refreshFailure = nil
             if tab == .history { await reloadHistory() }
             if userInitiated { information = "状态已更新。" }
-        } catch { refreshFailure = error.localizedDescription }
+        } catch {
+            if revision == statusRevision, serviceOperation == nil, !quitting { refreshFailure = error.localizedDescription }
+        }
         // Permission lookup must not hold the status refresh gate while waiting for macOS.
         if permissionTask == nil {
             permissionTask = Task { [weak self] in
@@ -263,31 +285,48 @@ import UserNotifications
         catch { channelResults[id] = Delivery(channelId: id, channelName: id == "system" ? "系统通知" : channels.first(where: { $0.id == id })?.name ?? id, provider: "", roundId: "", success: false, message: error.localizedDescription) }
     }
     func pause(minutes: Int) async {
-        guard !busy else { return }; busy = true; defer { busy = false }
-        do { try await backend.pause(minutes: minutes); information = "已暂停 \(minutes) 分钟，仍继续采样。"; await refresh(); await reloadHistory() }
+        guard !busy, monitoringState == .running else { return }; busy = true; statusRevision += 1; defer { busy = false }
+        do { try await backend.pause(minutes: minutes); try await updateMonitorStatus(); information = "已暂停 \(minutes) 分钟，仍继续采样。"; await reloadHistory() }
         catch { self.error = error.localizedDescription }
     }
     func resume() async {
-        guard !busy else { return }; busy = true; defer { busy = false }
-        do { try await backend.resume(); information = "已恢复通知与处理，重新累计异常。"; await refresh(); await reloadHistory() }
-        catch { self.error = error.localizedDescription }
+        guard !busy, monitoringState == .paused else { return }; busy = true; statusRevision += 1
+        let needsStart = status?.watcherRunning != true
+        if needsStart { serviceOperation = .starting; serviceFailure = nil }
+        defer { busy = false; serviceOperation = nil }
+        do {
+            if needsStart { try await launchService() }
+            try await backend.resume()
+            try await updateMonitorStatus()
+            information = needsStart ? "后台已启动，提醒与处理已恢复。" : "已恢复提醒与处理。"
+            await reloadHistory()
+        } catch { if needsStart { serviceFailure = error.localizedDescription }; self.error = error.localizedDescription }
+    }
+    private func updateMonitorStatus() async throws {
+        // Discard a periodic refresh that sampled before this operation completed.
+        statusRevision += 1
+        status = try await backend.status()
+        refreshFailure = nil
+    }
+    private func launchService() async throws {
+        // Create a default config only when absent; leave unsaved drafts alone.
+        let envelope = try await backend.configuration()
+        if envelope.revision.isEmpty { _ = try await backend.save(envelope) }
+        try await backend.startService()
+        try await confirmService(running: true)
     }
     func startService() async {
         guard !busy else { return }; busy = true; serviceOperation = .starting
-        information = nil
+        information = nil; serviceFailure = nil; statusRevision += 1
         defer { busy = false; serviceOperation = nil }
         do {
-            // Create a default config only if it is absent; do not apply any unsaved rule drafts.
-            let envelope = try await backend.configuration()
-            if envelope.revision.isEmpty { _ = try await backend.save(envelope) }
-            try await backend.startService()
-            try await confirmService(running: true)
+            try await launchService()
             information = "后台已启动，关闭窗口后仍会监控。"
-        } catch { self.error = error.localizedDescription }
+        } catch { serviceFailure = error.localizedDescription; self.error = error.localizedDescription }
     }
     func stopService() async {
         guard !busy else { return }; busy = true; serviceOperation = .stopping
-        information = nil
+        information = nil; serviceFailure = nil; statusRevision += 1
         defer { busy = false; serviceOperation = nil }
         do { try await backend.stopService(); try await confirmService(running: false); information = "后台已停止。" }
         catch { self.error = error.localizedDescription }
@@ -295,7 +334,7 @@ import UserNotifications
     func stopForQuit() async throws {
         screenController.restore()
         guard !busy else { throw BackendFailure(message: "正在完成其他操作，请稍后退出。") }
-        busy = true; quitting = true; serviceOperation = .stopping; information = nil
+        busy = true; quitting = true; serviceOperation = .stopping; information = nil; statusRevision += 1
         defer { busy = false; quitting = false; serviceOperation = nil }
         try await backend.stopService()
         try await confirmService(running: false)
@@ -309,7 +348,7 @@ import UserNotifications
             if latest.watcherRunning == running { return }
             try await Task.sleep(for: .milliseconds(300))
         } while Date() < deadline
-        throw BackendFailure(message: running ? "未确认后台运行，请在历史页查看运行日志。" : "仍检测到监控进程，请刷新状态或查看运行日志。")
+        throw BackendFailure(message: running ? await backend.startupFailure() : "仍检测到监控进程，请刷新状态或查看运行日志。")
     }
 }
 

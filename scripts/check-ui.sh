@@ -6,6 +6,12 @@ arch_name="$(uname -m)"
 trap 'rm -rf "$check_dir"' EXIT
 xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
   -module-cache-path "$project_dir/work/swift-cache" \
+  -o "$check_dir/monitoring-check" \
+  "$project_dir/macos/Sources/SleepGuard/MonitoringState.swift" \
+  "$project_dir/macos/Tests/MonitoringStateChecks.swift"
+"$check_dir/monitoring-check"
+xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
+  -module-cache-path "$project_dir/work/swift-cache" \
   -o "$check_dir/duration-check" \
   "$project_dir/macos/Sources/SleepGuard/ViewState.swift" \
   "$project_dir/macos/Sources/SleepGuard/DurationInput.swift" \

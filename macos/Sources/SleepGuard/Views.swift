@@ -65,10 +65,43 @@ struct WatchStateBadge: View {
     var body: some View {
         HStack(spacing: 6) {
             if model.serviceOperation != nil { ProgressView().controlSize(.small) }
-            else { Circle().fill(model.status?.watcherRunning == true ? Color.green : Color.secondary).frame(width: 6, height: 6) }
-            Text(model.serviceOperation?.title ?? (model.status?.watcherRunning == true ? "后台运行中" : "后台未运行"))
+            else { Circle().fill(model.monitoringState.color).frame(width: 6, height: 6) }
+            Text(model.serviceOperation?.title ?? model.monitoringState.badge)
                 .font(.caption).foregroundStyle(.secondary).fixedSize()
         }
+    }
+}
+private extension MonitoringState {
+    var color: Color {
+        switch self {
+        case .running: .green
+        case .paused: .yellow
+        case .stopped, .unavailable: .secondary
+        }
+    }
+}
+struct MonitoringControl: View {
+    @ObservedObject var model: GuardModel
+    var expanded = false
+    var body: some View {
+        Group {
+            switch model.monitoringState {
+            case .running:
+                PauseMenu(model: model, expanded: expanded)
+            case .paused:
+                Button { Task { await model.resume() } } label: {
+                    Label(model.status?.watcherRunning == true ? "立即恢复" : "恢复并启动", systemImage: "play.fill")
+                        .frame(maxWidth: expanded ? .infinity : nil).padding(.vertical, expanded ? 8 : 2)
+                }.buttonStyle(.borderedProminent)
+            case .stopped:
+                Button { Task { await model.startService() } } label: {
+                    Label("启动后台", systemImage: "play.fill")
+                        .frame(maxWidth: expanded ? .infinity : nil).padding(.vertical, expanded ? 8 : 2)
+                }.buttonStyle(.borderedProminent)
+            case .unavailable:
+                EmptyView()
+            }
+        }.disabled(model.busy)
     }
 }
 struct PauseMenu: View {
@@ -141,7 +174,7 @@ struct MenuPanel: View {
             }.padding(16)
             VStack(alignment: .leading, spacing: 6) {
                 Text(model.headline).font(.system(size: 18, weight: .semibold))
-                Text(model.status?.watcherRunning != true ? "启动后台后持续监控" : model.status?.paused == true ? "暂停至 \(ClockText.time(model.status?.pausedUntil ?? ""))" : model.status?.assessment.reason ?? "正在读取…").font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(model.monitoringDetail).font(.system(size: 12)).foregroundStyle(.secondary)
                 if let status = model.status {
                     HStack { Text("空闲 \(ClockText.duration(status.snapshot.idleSeconds))"); Spacer(); Text(status.snapshot.powerSource == "AC Power" ? "外接电源" : status.snapshot.powerSource) }.font(.system(size: 12)).foregroundStyle(.secondary).padding(.top, 8)
                 }
@@ -158,14 +191,8 @@ struct MenuPanel: View {
             }
             Divider()
             VStack(alignment: .leading, spacing: 8) {
-                if model.status?.paused == true {
-                    Button { Task { await model.resume() } } label: {
-                        Label("恢复提醒与处理", systemImage: "play").frame(maxWidth: .infinity).padding(.vertical, 8)
-                    }.buttonStyle(HoverButtonStyle(selected: true)).foregroundStyle(Color.accentColor)
-                } else {
-                    PauseMenu(model: model, expanded: true)
-                }
-                Text("暂停通知与处理，监控继续。").font(.system(size: 11)).foregroundStyle(.secondary)
+                MonitoringControl(model: model, expanded: true)
+                if model.monitoringState == .running { Text("暂停通知与处理，监控继续。").font(.system(size: 11)).foregroundStyle(.secondary) }
             }.padding(16).disabled(model.busy)
             Divider()
             HStack(spacing: 8) {
@@ -275,13 +302,12 @@ struct StatusPage: View {
     var body: some View {
         PageHeading(title: "当前状态", detail: model.status.map { "最近检查：\(ClockText.preciseTime($0.snapshot.at))" } ?? "尚未读取状态") {
             HStack(spacing: 8) {
-                if model.status?.paused != true { PauseMenu(model: model) }
                 RefreshButton(isRefreshing: model.refreshing, unavailable: model.busy) { await model.refresh(userInitiated: true) }
             }
         }
         if let failure = model.refreshFailure { QuietNotice(text: failure + (model.status == nil ? "" : " 显示的是上次成功读取的状态。"), warning: true) }
         if let status = model.status {
-            StatusSummary(model: model, status: status)
+            StatusSummary(model: model)
             if model.applicationCandidates.isEmpty { EmptyStateRow(icon: "checkmark.shield", title: "暂无阻塞休眠的应用", detail: "系统和外设请求可在下方展开查看。") }
             ForEach(model.applicationCandidates) { candidate in
                 SectionBox {
@@ -337,33 +363,20 @@ struct StatusPage: View {
 }
 struct StatusSummary: View {
     @ObservedObject var model: GuardModel
-    let status: GuardStatus
-    private var color: Color { !status.watcherRunning ? .secondary : status.paused ? .yellow : status.assessment.eligible ? .orange : .green }
-    private var icon: String { !status.watcherRunning ? "power" : status.paused ? "pause.circle" : status.assessment.eligible ? "exclamationmark.circle" : "checkmark.circle" }
-    private var detail: String {
-        if model.serviceOperation != nil { return "正在确认后台运行状态…" }
-        if !status.watcherRunning { return "启动后持续检查，关闭窗口后仍会监控。" }
-        if status.paused { return "暂停至 \(ClockText.time(status.pausedUntil))，监控继续。" }
-        return status.assessment.reason
-    }
     var body: some View {
         SectionBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
-                    Image(systemName: icon).font(.system(size: 22)).foregroundStyle(color)
+                    Image(systemName: model.monitoringState.symbol).font(.system(size: 22)).foregroundStyle(model.monitoringState.color)
                     Text(model.headline).font(.system(size: 17, weight: .semibold))
                     Spacer(minLength: 8)
                     if model.serviceOperation != nil { ProgressView().controlSize(.small) }
-                    else if status.watcherRunning { WatchStateBadge(model: model) }
+                    else { WatchStateBadge(model: model) }
                 }
                 HStack(spacing: 12) {
-                    Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(model.monitoringDetail).font(.caption).foregroundStyle(model.serviceFailure == nil ? Color.secondary : .orange).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
-                    if !status.watcherRunning {
-                        Button("启动后台") { Task { await model.startService() } }.buttonStyle(.borderedProminent).disabled(model.busy)
-                    } else if status.paused {
-                        Button("立即恢复") { Task { await model.resume() } }.disabled(model.busy)
-                    }
+                    MonitoringControl(model: model)
                 }
             }.padding(16)
         }

@@ -9,7 +9,7 @@ on:
       version:
         description: 'Version (x.y.z)'
         required: true
-        default: '0.3.2'
+        default: '0.3.3'
         type: string
 permissions:
   contents: read
@@ -40,7 +40,7 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          version="${INPUT_VERSION:-0.3.2}"
+          version="${INPUT_VERSION:-0.3.3}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then version="${GITHUB_REF#refs/tags/v}"; fi
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid version'; exit 1; }
           echo "VERSION=$version" >> "$GITHUB_ENV"
@@ -73,7 +73,9 @@ jobs:
           rm -f "$RUNNER_TEMP/certificate.p12"
           echo "SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
       - name: Build installer
-        run: make dmg
+        run: |
+          make dmg
+          python3 scripts/check-package.py
       - name: Optional notarization
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}

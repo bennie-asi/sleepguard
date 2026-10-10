@@ -5,7 +5,7 @@ import Darwin
 
 @main enum SleepGuardLaunch {
     @MainActor static func main() {
-        if CommandLine.arguments.dropFirst().first == "--run-monitor" { exit(MonitorHelper.run()) }
+        if CommandLine.arguments.dropFirst().first == "--run-monitor" { exit(MonitorHelper.run(arguments: Array(CommandLine.arguments.dropFirst(2)))) }
         if CommandLine.arguments.contains("--deliver-notification") { exit(NotificationHelper.deliver()) }
         if CommandLine.arguments.contains("--notification-status") { exit(NotificationHelper.status()) }
         if CommandLine.arguments.contains("--send-keychain-telegram") { exit(TelegramHelper.send()) }
