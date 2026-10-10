@@ -29,6 +29,7 @@ SleepGuard 把这些请求和责任应用放到菜单栏里。先观察，再通
 | **所有屏幕黑屏** | 纯黑遮罩覆盖内置和外接显示器，不锁屏；任意输入恢复 |
 | **锁屏与快捷键** | 一键锁屏；行内录入全局快捷键，支持字母、数字与 F1–F19，检测冲突 |
 | **事件历史** | 查看发现异常、渠道发送结果、暂停和应用处理记录 |
+| **版本与更新** | 查看版本、一键更新，并配置自动检查或退出时安装 |
 
 原生 SwiftUI 界面，Go 负责采集、规则、历史和后台监控。没有账号系统、云端仪表盘或遥测。只有启用 Telegram 时，通知内容会发送给 Telegram。
 
@@ -44,6 +45,8 @@ Webhook、飞书、Slack、邮件保留了添加渠道入口，**目前尚未实
 4. 在“设置”里启动后台。关闭管理窗口后仍会采集；退出 SleepGuard 会二次确认，并同时停止后台。
 
 请完成拖拽安装后再运行，不要直接从 DMG 或临时构建目录注册登录项。后台和图标都包含在 `.app` 中，不需要单独安装 Go。
+
+从带更新能力的版本开始，后续版本可在“版本与更新”中点击**立即更新**，由应用直接下载、验证、安装并重新打开；无需再次处理 DMG。自动检查默认开启，自动下载并在退出时安装默认关闭。旧版首次安装带更新能力的版本仍需使用上述安装方式。
 
 **当前没有 Developer ID 签名和 Apple 公证的构建**可能被 Gatekeeper 拦截。确认下载来源后，按 macOS 提示在“系统设置 → 隐私与安全性”中选择“仍要打开”。不需要关闭系统安全检查。工作流已支持接入 Developer ID 和公证，详见[发布指南](docs/releasing.md)。
 
@@ -112,19 +115,20 @@ make test check check-ui
 make dmg
 ```
 
-产物位于 `dist/`：`.app`、DMG 和 SHA-256 校验文件。可通过 `VERSION=0.3.3`、`ARCH=arm64` 或 `ARCH=x86_64` 指定版本与架构。完整原生运行验收建议在对应架构的 Mac 上进行。
+产物位于 `dist/`：`.app`、DMG 和 SHA-256 校验文件。版本默认读取根目录 `VERSION`；也可通过 `VERSION=0.4.0`、`ARCH=arm64` 或 `ARCH=x86_64` 覆盖本地构建。完整原生运行验收建议在对应架构的 Mac 上进行。
 
 ### GitHub 一键构建
 
-打开 **[Actions → Build DMG](https://github.com/bennie-asi/sleepguard/actions/workflows/build.yml) → Run workflow**，输入版本号即可。工作流分别在 Apple Silicon 和 Intel runner 上测试并打包，完成后从 Artifacts 下载。
+打开 **[Actions → Build DMG](https://github.com/bennie-asi/sleepguard/actions/workflows/build.yml) → Run workflow**，工作流按仓库中的 `VERSION` 在 Apple Silicon 和 Intel runner 上测试并打包，完成后从 Artifacts 下载。
 
-推送 `vX.Y.Z` 标签时，工作流还会创建 GitHub Release，上传两种架构的 DMG 和校验文件。PR 和 `main` 推送只测试、构建，不发布 Release。签名、公证凭据均为可选 GitHub Secrets。
+推送 `vX.Y.Z` 标签时，工作流创建 GitHub Release，上传两种架构的 DMG、校验文件和已签名更新清单。PR 和 `main` 推送只测试、构建，不发布 Release。正式更新发布需要 Developer ID、公证凭据和 `SPARKLE_ED25519_PRIVATE_KEY`；缺少任一项时标签构建会失败，不发布不可自动更新的版本。
 
 ### CLI 仍然可用
 
 ```sh
 make build
 bin/sleepguard status
+bin/sleepguard version --json
 bin/sleepguard status --json
 bin/sleepguard config example
 bin/sleepguard watch --dry-run --once

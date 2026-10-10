@@ -148,6 +148,7 @@ struct PageHeading<Actions: View>: View {
 }
 struct MenuPanel: View {
     @ObservedObject var model: GuardModel
+    @ObservedObject private var updater = UpdateController.shared
     @Environment(\.openWindow) private var openWindow
     @ViewState private var presentation = MenuPresentation()
     private func show(_ tab: ManagementTab) {
@@ -205,10 +206,12 @@ struct MenuPanel: View {
                 menuButton("应用规则", icon: "slider.horizontal.3", tab: .rules)
                 menuButton("通知渠道", icon: "bell", tab: .notifications)
                 menuButton("事件历史", icon: "clock.arrow.circlepath", tab: .history)
+                menuButton("版本与更新", icon: "arrow.triangle.2.circlepath", tab: .updates)
             }.padding(6)
             Divider()
             HStack(spacing: 2) {
-                Text(model.status.map { "最近检查 \(ClockText.preciseTime($0.snapshot.at))" } ?? "等待采样").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text("v\(updater.version)" + (updater.availableVersion == nil ? "" : " · 有更新"))
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
                 RefreshButton(isRefreshing: model.refreshing, label: "刷新", unavailable: model.busy) { await model.refresh(userInitiated: true) }.foregroundStyle(Color.accentColor)
                 Button { presentation.dismiss(); NSApp.terminate(nil) } label: { Text("退出").font(.system(size: 12)).padding(6) }.buttonStyle(HoverButtonStyle()).foregroundStyle(.secondary)
@@ -266,6 +269,7 @@ struct ManagementView: View {
                     case .notifications: NotificationsPage(model: model)
                     case .history: HistoryPage(model: model)
                     case .settings: SettingsPage(model: model)
+                    case .updates: UpdatePage(updater: model.updater)
                     }
                 }.frame(maxWidth: 760, alignment: .leading).padding(20).frame(maxWidth: .infinity)
             }.id(model.tab).transition(.opacity)

@@ -6,6 +6,7 @@ import UserNotifications
     let backend = GoBackend()
     let screenController = ScreenController()
     let shortcuts = ShortcutController()
+    let updater = UpdateController.shared
     private var blackoutTask: Task<Void, Never>?
     func blackout() async {
         guard !screenController.active, !busy else { return }
@@ -163,6 +164,12 @@ import UserNotifications
             load(envelope.config, resetRules: true, resetSettings: true)
         } catch { self.error = error.localizedDescription }
         await refresh()
+        await recoverAfterUpdate()
+        startRefreshTimer()
+        updater.start(model: self)
+    }
+    private func startRefreshTimer() {
+        timerTask?.cancel()
         timerTask = Task { [weak self] in
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(10)) } catch { break }
@@ -339,6 +346,55 @@ import UserNotifications
         try await backend.stopService()
         try await confirmService(running: false)
         timerTask?.cancel()
+    }
+    func prepareForUpdate() async throws {
+        guard !screenController.active else { throw BackendFailure(message: "请先结束黑屏，再更新 SleepGuard。") }
+        guard !dirtyRules && !dirtySettings else { throw BackendFailure(message: "请先保存或撤销未保存的设置。") }
+        guard !busy else { throw BackendFailure(message: "正在完成其他操作，请稍后更新。") }
+        busy = true; quitting = true; serviceOperation = .stopping; statusRevision += 1
+        let wasRunning: Bool
+        do { wasRunning = try await backend.status().watcherRunning }
+        catch { busy = false; quitting = false; serviceOperation = nil; throw error }
+        do {
+            if wasRunning {
+                try await backend.stopService()
+                try await confirmService(running: false)
+            }
+            let recovery = UpdateRecovery(previousBuild: updater.build, watcherWasRunning: wasRunning, createdAt: Date())
+            try recovery.save()
+            timerTask?.cancel()
+        } catch {
+            UpdateRecovery.clear()
+            if wasRunning { try? await launchService() }
+            busy = false; quitting = false; serviceOperation = nil
+            startRefreshTimer()
+            throw error
+        }
+    }
+    func restoreAfterFailedUpdate() async {
+        defer { busy = false; quitting = false; serviceOperation = nil; startRefreshTimer() }
+        guard let recovery = try? UpdateRecovery.take() else { return }
+        if recovery.watcherWasRunning {
+            do { try await launchService() }
+            catch { self.error = "更新未完成，后台恢复失败：\(error.localizedDescription)" }
+        }
+    }
+    private func recoverAfterUpdate() async {
+        do {
+            guard let recovery = try UpdateRecovery.take() else { return }
+            guard Date().timeIntervalSince(recovery.createdAt) < 1800 else { return }
+            if recovery.watcherWasRunning && status?.watcherRunning != true {
+                try await launchService()
+            }
+            if recovery.previousBuild != updater.build {
+                information = "已更新到 \(updater.version)，后台已按原状态恢复。"
+            } else {
+                self.error = "更新未完成，已恢复原有后台状态。"
+            }
+            await refresh()
+        } catch {
+            self.error = "更新后后台恢复失败：\(error.localizedDescription)。请在设置中检查后台服务。"
+        }
     }
     private func confirmService(running: Bool) async throws {
         let deadline = Date().addingTimeInterval(8)

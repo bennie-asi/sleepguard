@@ -65,6 +65,15 @@ struct MenuIcon: View {
         return true
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if UpdateController.shared.installPrepared { return .terminateNow }
+        if !UpdateController.shared.canQuitWithoutUnexpectedInstall {
+            let alert = NSAlert()
+            alert.messageText = "自动安装尚未取消"
+            alert.informativeText = "请在“版本与更新”中重试取消，完成后再退出。"
+            alert.addButton(withTitle: "好")
+            alert.runModal()
+            return .terminateCancel
+        }
         guard !terminationPending else { return .terminateLater }
         let alert = NSAlert()
         alert.messageText = "退出 SleepGuard？"

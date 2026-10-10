@@ -195,9 +195,9 @@ struct CatalogApp: Identifiable, Sendable {
     var detail: String { protected ? "受保护" : pid.map { "PID \($0)" } ?? "已安装" }
 }
 enum ManagementTab: String, CaseIterable, Identifiable {
-    case status = "状态", rules = "规则", notifications = "通知", history = "历史", settings = "设置"
+    case status = "状态", rules = "规则", notifications = "通知", history = "历史", settings = "设置", updates = "版本"
     var id: String { rawValue }
-    var icon: String { switch self { case .status: "waveform.path.ecg"; case .rules: "slider.horizontal.3"; case .notifications: "bell"; case .history: "clock.arrow.circlepath"; case .settings: "gearshape" } }
+    var icon: String { switch self { case .status: "waveform.path.ecg"; case .rules: "slider.horizontal.3"; case .notifications: "bell"; case .history: "clock.arrow.circlepath"; case .settings: "gearshape"; case .updates: "arrow.triangle.2.circlepath" } }
 }
 enum ClockText {
     static func date(_ value: String) -> Date? {

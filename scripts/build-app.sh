@@ -13,14 +13,21 @@ trap cleanup EXIT
 app_dir="$build_dir/SleepGuard.app"
 arch_name="${ARCH:-$(uname -m)}"
 [[ "$arch_name" == arm64 || "$arch_name" == x86_64 ]] || { echo 'ARCH must be arm64 or x86_64' >&2; exit 1; }
-version="${VERSION:-0.3.3}"
+version="${VERSION:-$(cat "$project_dir/VERSION")}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'VERSION must be x.y.z' >&2; exit 1; }
-mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$project_dir/work/swift-cache" "$app_dir/Contents/Library/LaunchAgents"
+IFS=. read -r major minor patch <<< "$version"
+(( minor < 1000 && patch < 1000 )) || { echo 'VERSION minor and patch must be below 1000' >&2; exit 1; }
+build_number="${BUILD_NUMBER:-$((major * 1000000 + minor * 1000 + patch))}"
+[[ "$build_number" =~ ^[0-9]+$ ]] && (( build_number > 0 )) || { echo 'BUILD_NUMBER must be positive integer' >&2; exit 1; }
+sparkle_dir="$("$project_dir/scripts/fetch-sparkle.sh")"
+mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/Frameworks" "$project_dir/work/swift-cache" "$app_dir/Contents/Library/LaunchAgents"
+ditto "$sparkle_dir/Sparkle.framework" "$app_dir/Contents/Frameworks/Sparkle.framework"
 cp "$project_dir/macos/io.sleepguard.agent.plist" "$app_dir/Contents/Library/LaunchAgents/io.sleepguard.agent.plist"
 cp "$project_dir/macos/io.sleepguard.app.agent.plist" "$app_dir/Contents/Library/LaunchAgents/io.sleepguard.app.agent.plist"
 cp "$project_dir/macos/Info.plist" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $version" "$app_dir/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set CFBundleVersion ${BUILD_NUMBER:-13}" "$app_dir/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set CFBundleVersion $build_number" "$app_dir/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set SUFeedURL https://github.com/bennie-asi/sleepguard/releases/latest/download/appcast-$arch_name.xml" "$app_dir/Contents/Info.plist"
 cd "$project_dir"
 xcrun swiftc -swift-version 6 -parse-as-library -module-cache-path "$project_dir/work/swift-cache" -o "$project_dir/work/render-app-icon" scripts/render-app-icon.swift
 "$project_dir/work/render-app-icon" "$project_dir/work/SleepGuard.iconset"
@@ -29,10 +36,24 @@ rm -rf "$project_dir/work/SleepGuard.iconset" "$project_dir/work/render-app-icon
 go_arch=arm64
 if [[ "$arch_name" == x86_64 ]]; then go_arch=amd64; fi
 export MACOSX_DEPLOYMENT_TARGET=13.0
-CGO_ENABLED=1 GOOS=darwin GOARCH="$go_arch" CC="clang -arch $arch_name" "${GO:-go}" build -trimpath -ldflags='-s -w' -o "$app_dir/Contents/Resources/sleepguard" ./cmd/sleepguard
-xcrun swiftc -swift-version 6 -parse-as-library -O -target "$arch_name-apple-macosx13.0" -module-cache-path "$project_dir/work/swift-cache" -o "$app_dir/Contents/MacOS/SleepGuard" macos/Sources/SleepGuard/*.swift
+CGO_ENABLED=1 GOOS=darwin GOARCH="$go_arch" CC="clang -arch $arch_name" "${GO:-go}" build -trimpath -ldflags="-s -w -X main.appVersion=$version -X main.appBuild=$build_number" -o "$app_dir/Contents/Resources/sleepguard" ./cmd/sleepguard
+xcrun swiftc -swift-version 6 -parse-as-library -O -target "$arch_name-apple-macosx13.0" -module-cache-path "$project_dir/work/swift-cache" -F "$app_dir/Contents/Frameworks" -framework Sparkle -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' -o "$app_dir/Contents/MacOS/SleepGuard" macos/Sources/SleepGuard/*.swift
 xcrun swiftc -swift-version 6 -parse-as-library -O -target "$arch_name-apple-macosx13.0" -module-cache-path "$project_dir/work/swift-cache" -o "$app_dir/Contents/MacOS/SleepGuardMonitor" macos/Sources/SleepGuard/MonitorHelper.swift macos/Sources/Monitor/main.swift
 identity="${SIGNING_IDENTITY:--}"
+sparkle_framework="$app_dir/Contents/Frameworks/Sparkle.framework"
+sign_nested() {
+    local target="$1"
+    if [[ "$identity" == '-' ]]; then
+        codesign --force --sign - "$target"
+    else
+        codesign --force --sign "$identity" --options runtime --timestamp "$target"
+    fi
+}
+sign_nested "$sparkle_framework/Versions/B/Autoupdate"
+sign_nested "$sparkle_framework/Versions/B/XPCServices/Downloader.xpc"
+sign_nested "$sparkle_framework/Versions/B/XPCServices/Installer.xpc"
+sign_nested "$sparkle_framework/Versions/B/Updater.app"
+sign_nested "$sparkle_framework"
 if [[ "$identity" == '-' ]]; then
     codesign --force --sign - --identifier io.sleepguard.backend "$app_dir/Contents/Resources/sleepguard"
     codesign --force --sign - --identifier io.sleepguard.app.agent "$app_dir/Contents/MacOS/SleepGuardMonitor"

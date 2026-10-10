@@ -21,6 +21,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var appVersion = "development"
+var appBuild = "0"
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -33,6 +36,15 @@ func output(v any) error { e := json.NewEncoder(os.Stdout); e.SetIndent("", "  "
 func command() *cobra.Command {
 	var cfgPath, state string
 	root := &cobra.Command{Use: "sleepguard", Short: "检查 macOS 防休眠请求，通知并按规则处理", SilenceUsage: true, SilenceErrors: true}
+	versionCmd := &cobra.Command{Use: "version", Short: "显示版本和构建号", RunE: func(cmd *cobra.Command, _ []string) error {
+		if jsonVersion, _ := cmd.Flags().GetBool("json"); jsonVersion {
+			return output(map[string]string{"version": appVersion, "build": appBuild})
+		}
+		fmt.Printf("SleepGuard %s (%s)\n", appVersion, appBuild)
+		return nil
+	}}
+	versionCmd.Flags().Bool("json", false, "输出 JSON")
+	root.AddCommand(versionCmd)
 	root.PersistentFlags().StringVar(&cfgPath, "config", config.DefaultPath(), "TOML 配置路径")
 	root.PersistentFlags().StringVar(&state, "state-dir", config.DefaultStateDir(), "事件数据库目录")
 	load := func(required bool) (config.Config, error) {
