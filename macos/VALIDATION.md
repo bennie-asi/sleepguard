@@ -97,3 +97,14 @@ Additional native process acceptance: a disposable, project-built IOPM assertion
 - 菜单快捷操作使用两行标题与说明；过高的菜单可滚动且隐藏滚动条。状态页将受保护的系统请求放在诊断展开区，保留应用卡片的手动操作和调整规则入口。菜单整条导航的关闭逻辑仍共用 `MenuPresentation.dismiss`。
 
 本轮原生窗口控制恢复，但系统菜单栏清单查询仍超时，菜单图标无法稳定定位。因此完整菜单展开、各入口关闭与再次展开尚未重新实测。实际锁屏、真实 GUI 应用退出保存提示、显示器热插拔、Finder 拖拽安装、Telegram 真实发送、Intel 与旧版 macOS 仍按未验证记录。
+
+## 0.3.2 — GitHub 发布验证（2026-10-10）
+
+- 最终本机应用为 0.3.2、build 10。退出确认后重新打开，点击刷新显示“状态已更新”，时间更新到秒，按钮恢复可用；未出现钥匙串授权弹窗。后台仍按本轮开始时的状态保持关闭，用户的规则与通知配置没有改变。
+- 修复 macOS 15 SDK 的 Swift 6 并发兼容问题：`SMAppService` 在主 actor 调用回调版本的注销方法，通知权限只跨 actor 传递状态值；没有关闭并发检查或添加不安全的 Sendable 声明。
+- [main 构建](https://github.com/bennie-asi/sleepguard/actions/runs/38044853965) 的 `macos-15` / arm64 与 `macos-15-intel` / x86_64 均通过 Go race、Go vet、Swift 时间与快捷键、后台命令检查，完成应用签名验证、DMG 校验和产物上传。
+- 两个 main 构建安装包已下载核对 SHA-256 sidecar，挂载后验证 `.app` 与 `/Applications` 链接。外层与嵌套签名通过；Swift 与 Go 可执行文件的架构分别为 arm64 / x86_64，版本均为 0.3.2、build 5。临时下载和挂载已清理。
+- [v0.3.2 发布构建](https://github.com/bennie-asi/sleepguard/actions/runs/38045200525) 的两种架构构建与 release job 均成功。[正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.3.2) 已公开，含两个 DMG 与各自 SHA-256 文件；四个资产回读为 uploaded。
+- 源码、MIT License、README 与手动触发 `Build DMG` 的 Actions 工作流已发布到 [bennie-asi/sleepguard](https://github.com/bennie-asi/sleepguard)。发布标签对应 `eb2a15046f6489cef3084a4532b6ce33ef43dbe9`。
+
+CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚未执行 Intel 原生窗口与 macOS 13–14 的交互验收。Developer ID、公证和真实 Telegram 投递仍未配置或执行；临时签名更新后的旧钥匙串条目可能仍需一次原生授权。菜单栏完整点击验收、逐屏像素与热插拔、真实锁屏和 Finder 拖拽安装保持前述未验证范围。
