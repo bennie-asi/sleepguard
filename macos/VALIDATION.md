@@ -136,7 +136,7 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - [v0.4.1 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.1) 已公开并成为最新正式版本。API 回读六份上传资产全部为 `uploaded`；版本为 `0.4.1`、build `4001`。公开下载的两份 DMG 与标签 CI 安装包逐字节一致，SHA-256 sidecar 和 GitHub digest 均匹配。
 - 使用本机 Keychain 签署同一批 CI DMG 的两个 appcast，用户完成签名工具的系统授权。公开下载和 latest 入口返回的 XML 与签署原件一致；使用应用内置公钥独立验证清单和安装包 Ed25519 签名，两种架构均通过。私钥没有导出、写入仓库或日志。
 
-当前公开包采用 ad-hoc 应用签名，未做 Apple 公证。以上结果覆盖构建、菜单组件及发布资产，不代表真实 `0.4.1 → N+1` 升级、自动安装撤销、失败恢复或 watcher 跨版本恢复已经通过；这些交互仍待验收。
+该次 `0.4.1` 发布采用 ad-hoc 应用签名，未做 Apple 公证。当时的结果覆盖构建、菜单组件及发布资产，真实跨版本升级和 Go watcher 恢复的后续验收见下方 `0.4.2` 记录。
 
 ## 0.4.2 自动安装修复（2026-10-10）
 
@@ -149,4 +149,15 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - `make check-ui`、Go race/vet、arm64 编译、严格包检查、DMG 创建与镜像校验通过。
 - 对已经失效且尚未包含新逻辑的本机旧版执行一次维护恢复：仅匹配同用户、同 Bundle ID、同旧路径、相同启动时间且 `proc_pidpath=ENOENT` 的进程；先停止后台，再发送 SIGTERM，启动严格签名验证通过的公开 `0.4.1`。应用现位于 `/Applications/SleepGuard.app`，GUI `75627` 和 Go watcher `75646` 的文件身份有效；旧进程 `64423` / `64442` 已退出。原生状态页显示“监控运行中”，配置 SHA-256 与暂停时间保持一致。
 
-这些原生集成用例验证安装与重启机制；临时后台不能代替公开版本之间真实 Go watcher 恢复的结论。`0.4.2` 公开发布后的实际 `0.4.1 → 0.4.2` 更新仍待本轮最终验收。Developer ID、公证、Intel 原生交互、自动退出安装及其取消仍未验收。
+这些原生集成用例验证安装与重启机制；实际公开版本之间的 Go watcher 恢复另外验收如下。Developer ID、公证、Intel 原生交互、退出时自动安装及其取消仍未验收。
+
+## 0.4.2 正式发布与本机跨版本升级（2026-10-10）
+
+- 发布源提交 `4d31f60afe8fee9ce4f5c28d075e6817484652c1`；[main 构建](https://github.com/bennie-asi/sleepguard/actions/runs/38058923364) 与 [标签发布](https://github.com/bennie-asi/sleepguard/actions/runs/38059258230) 完成且均为 `success`。arm64 / x86_64 的应用、Go 后台架构、版本 `0.4.2` / build `4002`、严格签名、固定更新公钥和 DMG 的 Applications 链接均检查通过。
+- [v0.4.2 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.2) 于 22:45（Asia/Shanghai）公开且为 latest。网页和 API 均回读正式发布，六份资产为 `uploaded`；公开下载与标签 CI 包、签署原件逐字节一致，SHA-256 sidecar 和 GitHub digest 均匹配。
+- 用户分别完成两次签名工具的 Keychain 系统授权；没有导出私钥。两个 latest appcast 与签署原件相同；使用内置公钥独立验证 XML 和 DMG 的 Ed25519 签名，两种架构均通过。
+- 本机原先运行公开 `0.4.1` / build `4001`，GUI `75627`、Go watcher `75646`。22:49 在应用内点击“立即更新”，界面进入“正在下载更新”；22:50 自动安装后 GUI `78527` 与真实 Go watcher `78547` 从 `/Applications/SleepGuard.app` 启动，旧进程均已退出。升级期间没有手工复制 `0.4.2` 包或启动新 GUI。
+- 新版状态页实际显示“已更新到 0.4.2，后台已按原状态恢复。”及“监控运行中”；点击刷新后显示“状态已更新”，检查时间到 `22:51:07`。版本页显示 `SleepGuard 0.4.2`、build `4002`，更新器恢复可检查状态。
+- 升级后 GUI 与 watcher 的 `proc_pidpath` 均有效；安装后的严格签名检查通过，CLI 回读 `SleepGuard 0.4.2 (4002)`。配置 SHA-256、暂停时间、watcher 运行状态和服务安装状态与升级前一致；原有 43 条 SQLite 事件按相同序列化方式逐条哈希回读一致。
+
+已完成 Apple Silicon 本机真实 `0.4.1 → 0.4.2` 下载、校验、安装、退出旧进程、自动重启及 Go watcher 状态恢复。Intel 的结果覆盖 CI 打包与签名校验，尚未在 Intel 硬件上运行升级；当前包仍为 ad-hoc 签名，未做 Apple 公证。
