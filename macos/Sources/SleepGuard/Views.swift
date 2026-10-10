@@ -150,19 +150,28 @@ struct MenuPanel: View {
     @ObservedObject var model: GuardModel
     @ObservedObject private var updater = UpdateController.shared
     @Environment(\.openWindow) private var openWindow
-    @ViewState private var presentation = MenuPresentation()
+    @StateObject private var presentation = MenuPresentation()
+    @ViewState private var contentHeight: CGFloat = 1
     private func show(_ tab: ManagementTab) {
         presentation.dismiss()
         model.tab = tab
         openWindow(id: "management")
         NSApp.activate(ignoringOtherApps: true)
     }
-    private var maximumHeight: CGFloat { max(300, min(720, (presentation.window?.screen ?? NSScreen.main)?.visibleFrame.height ?? 800) - 60) }
     var body: some View {
-        ViewThatFits(in: .vertical) {
-            panel
-            ScrollView(showsIndicators: false) { panel }.frame(height: maximumHeight)
-        }.frame(width: 320).frame(maxHeight: maximumHeight)
+        ScrollView(.vertical, showsIndicators: false) {
+            panel.fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { geometry in
+                    Color.clear.preference(key: MenuContentHeightKey.self, value: geometry.size.height)
+                })
+        }
+            .frame(width: 320, height: min(contentHeight, presentation.maximumHeight))
+            .scrollDisabled(contentHeight <= presentation.maximumHeight)
+            .onPreferenceChange(MenuContentHeightKey.self) { height in contentHeight = max(1, ceil(height)) }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { notification in
+                if notification.object as? NSWindow === presentation.window { presentation.updateHeightLimit() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in presentation.updateHeightLimit() }
             .onReceive(NotificationCenter.default.publisher(for: .sleepGuardDismissMenu)) { _ in presentation.dismiss() }
             .background(MenuWindowReader(presentation: presentation).frame(width: 0, height: 0).accessibilityHidden(true))
     }
@@ -231,6 +240,10 @@ struct MenuPanel: View {
             }.padding(.horizontal, 10).padding(.vertical, 9).contentShape(Rectangle())
         }.buttonStyle(HoverButtonStyle())
     }
+}
+private struct MenuContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 struct ManagementView: View {
     @ObservedObject var model: GuardModel

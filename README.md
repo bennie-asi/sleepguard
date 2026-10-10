@@ -121,7 +121,7 @@ make dmg
 
 打开 **[Actions → Build DMG](https://github.com/bennie-asi/sleepguard/actions/workflows/build.yml) → Run workflow**，工作流按仓库中的 `VERSION` 在 Apple Silicon 和 Intel runner 上测试并打包，完成后从 Artifacts 下载。
 
-推送 `vX.Y.Z` 标签时，工作流创建 GitHub Release，上传两种架构的 DMG、校验文件和已签名更新清单。PR 和 `main` 推送只测试、构建，不发布 Release。正式更新发布需要 Developer ID、公证凭据和 `SPARKLE_ED25519_PRIVATE_KEY`；缺少任一项时标签构建会失败，不发布不可自动更新的版本。
+推送 `vX.Y.Z` 标签时，工作流创建 GitHub Release，上传两种架构的 DMG 和校验文件。配置 Sparkle 签名 Secret 后会同时生成更新清单并发布；未配置时先生成草稿，可用本机钥匙串签署清单、上传后发布。Developer ID 和 Apple 公证可选。PR 和 `main` 推送只测试、构建，不发布 Release。配置步骤见[发布指南](docs/releasing.md)。
 
 ### CLI 仍然可用
 

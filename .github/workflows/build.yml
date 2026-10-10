@@ -53,7 +53,7 @@ jobs:
               raise SystemExit('Release version must increase beyond latest published release')
           PY
           fi
-      - name: Require signed release credentials
+      - name: Choose release signing
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE_P12 }}
@@ -64,9 +64,19 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           SPARKLE_KEY: ${{ secrets.SPARKLE_ED25519_PRIVATE_KEY }}
         run: |
-          for required in CERTIFICATE CERTIFICATE_PASSWORD IDENTITY APPLE_ID APPLE_APP_PASSWORD APPLE_TEAM_ID SPARKLE_KEY; do
-            [[ -n "${!required}" ]] || { echo "Missing $required for automatic-update release"; exit 1; }
-          done
+          if [[ -n "$CERTIFICATE" ]]; then
+            for required in CERTIFICATE_PASSWORD IDENTITY APPLE_ID APPLE_APP_PASSWORD APPLE_TEAM_ID; do
+              [[ -n "${!required}" ]] || { echo "Missing $required for Developer ID release"; exit 1; }
+            done
+          else
+            echo 'Publishing ad-hoc builds without Apple notarization.'
+          fi
+          if [[ -n "$SPARKLE_KEY" ]]; then
+            echo 'SIGN_UPDATE_FEED=true' >> "$GITHUB_ENV"
+          else
+            echo 'SIGN_UPDATE_FEED=false' >> "$GITHUB_ENV"
+            echo '::notice::Sparkle key is not configured. The installer release will stay a draft until signed feeds are added.'
+          fi
       - name: Test Go and Swift
         run: |
           go test -race ./...
@@ -114,7 +124,7 @@ jobs:
           xcrun stapler validate "$image"
           (cd dist && shasum -a 256 "$(basename "$image")" > "$(basename "$image").sha256")
       - name: Create signed update feed
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') && env.SIGN_UPDATE_FEED == 'true'
         env:
           SPARKLE_ED25519_PRIVATE_KEY: ${{ secrets.SPARKLE_ED25519_PRIVATE_KEY }}
         run: scripts/build-appcast.sh
@@ -149,14 +159,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/*.dmg release/*.sha256 release/appcast-*.xml --verify-tag --draft --title "SleepGuard $GITHUB_REF_NAME" --notes-file docs/release-notes.md
+          shopt -s nullglob
+          assets=(release/*.dmg release/*.sha256 release/appcast-*.xml)
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" --verify-tag --draft --title "SleepGuard $GITHUB_REF_NAME" --notes-file docs/release-notes.md
           gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/release-assets.txt"
           python3 - "$RUNNER_TEMP/release-assets.txt" <<'PY'
           from pathlib import Path
           import sys
           actual = set(Path(sys.argv[1]).read_text().splitlines())
           expected = {path.name for pattern in ('*.dmg', '*.sha256', 'appcast-*.xml') for path in Path('release').glob(pattern)}
-          if len(expected) != 6 or actual != expected:
+          feeds = list(Path('release').glob('appcast-*.xml'))
+          if len(expected) not in (4, 6) or len(feeds) not in (0, 2) or actual != expected:
               raise SystemExit(f'Release assets incomplete: expected {sorted(expected)}, got {sorted(actual)}')
           PY
-          gh release edit "$GITHUB_REF_NAME" --draft=false
+          if [[ -f release/appcast-arm64.xml && -f release/appcast-x86_64.xml ]]; then
+            gh release edit "$GITHUB_REF_NAME" --draft=false
+          else
+            echo '::notice::Draft ready. Sign both exact DMGs using the local Keychain, attach appcast-arm64.xml and appcast-x86_64.xml, then publish.'
+          fi

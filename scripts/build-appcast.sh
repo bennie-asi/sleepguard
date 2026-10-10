@@ -5,8 +5,8 @@ version="${VERSION:-$(cat "$project_dir/VERSION")}"
 architecture="${ARCH:-$(uname -m)}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid VERSION' >&2; exit 1; }
 [[ "$architecture" == arm64 || "$architecture" == x86_64 ]] || { echo 'Invalid ARCH' >&2; exit 1; }
-if [[ -z "${SPARKLE_ED25519_PRIVATE_KEY:-}" ]]; then
-    echo 'Missing SPARKLE_ED25519_PRIVATE_KEY for signed appcast' >&2
+if [[ -z "${SPARKLE_ED25519_PRIVATE_KEY:-}" && -z "${SPARKLE_KEYCHAIN_ACCOUNT:-}" ]]; then
+    echo 'Set SPARKLE_ED25519_PRIVATE_KEY or SPARKLE_KEYCHAIN_ACCOUNT for signed appcast' >&2
     exit 1
 fi
 sparkle_dir="$("$project_dir/scripts/fetch-sparkle.sh")"
@@ -19,7 +19,11 @@ cp "$project_dir/docs/release-notes.md" "$stage/SleepGuard-$version-$architectur
 url="https://github.com/bennie-asi/sleepguard/releases/download/v$version"
 feed="$stage/appcast-$architecture.xml"
 args=(--download-url-prefix "$url/" --embed-release-notes -o "$feed")
-printf '%s' "$SPARKLE_ED25519_PRIVATE_KEY" | "$sparkle_dir/bin/generate_appcast" --ed-key-file - "${args[@]}" "$stage" 2> "$stage/generate.log"
+if [[ -n "${SPARKLE_ED25519_PRIVATE_KEY:-}" ]]; then
+    printf '%s' "$SPARKLE_ED25519_PRIVATE_KEY" | "$sparkle_dir/bin/generate_appcast" --ed-key-file - "${args[@]}" "$stage" 2> "$stage/generate.log"
+else
+    "$sparkle_dir/bin/generate_appcast" --account "$SPARKLE_KEYCHAIN_ACCOUNT" "${args[@]}" "$stage" 2> "$stage/generate.log"
+fi
 if grep -q 'does not match' "$stage/generate.log"; then
     echo 'Sparkle private key does not match SUPublicEDKey' >&2
     exit 1

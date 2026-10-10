@@ -1,6 +1,6 @@
 # SleepGuard 版本与自动更新设计
 
-状态：2026-10-10 已完成本地代码接入与 arm64 构建检查；尚未发布 `v0.4.0`，也未验证两份正式签名安装包之间的真实升级。
+状态：2026-10-10 已完成本地代码接入与 arm64 构建检查。`v0.4.0` 双架构 main 构建通过，但标签发布因缺少 Apple 证书失败；修复版本为 `0.4.1`。真实跨版本升级仍待验收。
 
 ## 用户流程
 
@@ -12,7 +12,7 @@
 
 ## 版本与更新源
 
-根目录 `VERSION` 是发布版本来源，当前为 `0.4.0`。`scripts/build-app.sh` 将其写入 App 的 `CFBundleShortVersionString` 和 Go CLI `version`，构建号由 `major×1000000 + minor×1000 + patch` 生成，同时写入 `CFBundleVersion` 和 CLI。当前构建号为 `4000`，两种架构共享相同版本和构建号。发布标签必须与 `VERSION` 一致，且高于最新正式 Release。Sparkle 使用 bundle 构建号选择更新。
+根目录 `VERSION` 是发布版本来源，当前为 `0.4.1`。`scripts/build-app.sh` 将其写入 App 的 `CFBundleShortVersionString` 和 Go CLI `version`，构建号由 `major×1000000 + minor×1000 + patch` 生成，同时写入 `CFBundleVersion` 和 CLI。当前构建号为 `4001`，两种架构共享相同版本和构建号。发布标签必须与 `VERSION` 一致，且高于最新正式 Release。Sparkle 使用 bundle 构建号选择更新。
 
 按运行包架构分别读取 GitHub 最新正式 Release 中的 `appcast-arm64.xml` 或 `appcast-x86_64.xml`；清单引用同一 Release 的对应 DMG。客户端不请求 GitHub API，也不让用户编辑任意更新 URL。Intel 版在 Rosetta 下仍读取 Intel 清单。旧版没有更新器时，首次安装 `0.4.0` 仍需按既有安装方式完成；此后才可在应用内一键更新。
 

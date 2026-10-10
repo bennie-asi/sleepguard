@@ -8,9 +8,9 @@ Run `make test check check-ui`, then `make dmg` and `python3 scripts/check-packa
 
 **Actions → Build DMG → Run workflow** builds the checked-in `VERSION` for Apple Silicon and Intel. This manual workflow uploads build artifacts but does not create a public Release. The runners are `macos-15` and `macos-15-intel`.
 
-## Public automatic-update release
+## Public release and update signing
 
-Before tagging, configure these GitHub Actions Secrets from the Apple Developer account and the Sparkle signing key used by this App:
+Apple Developer ID and notarization are optional. Without an Apple certificate the workflow builds ad-hoc signed installers, as in the earlier releases. If `MACOS_CERTIFICATE_P12` is set, the other Apple credentials below must all be configured. Sparkle signing is independent of Apple signing:
 
 | Secret | Content |
 | --- | --- |
@@ -22,11 +22,30 @@ Before tagging, configure these GitHub Actions Secrets from the Apple Developer 
 | `APPLE_TEAM_ID` | Developer team ID |
 | `SPARKLE_ED25519_PRIVATE_KEY` | Private key matching `SUPublicEDKey` in `macos/Info.plist` |
 
-The Sparkle key was created under Keychain account `sleepguard`. `scripts/fetch-sparkle.sh` fetches the pinned `generate_keys` tool; `work/sparkle-2.10.0/bin/generate_keys --account sleepguard -p` displays its public key for comparison. Export the private key with the same tool's `-x` option into a temporary file, add its contents as the GitHub Secret, and remove the temporary file. Never commit the key or paste it into an issue or build log. A missing or mismatched Secret stops the tag build before publishing.
+The Sparkle key is stored under Keychain account `sleepguard`. `work/sparkle-2.10.0/bin/generate_keys --account sleepguard -p` displays only its public key for comparison with `SUPublicEDKey` in `macos/Info.plist`. Never commit the private key or paste it into an issue or build log.
 
-For the first update-enabled release, commit `VERSION=0.4.0` with this implementation, run the local checks, then create and push `v0.4.0` from that commit. The tag workflow rejects a version that does not match `VERSION` or does not exceed the latest published Release. It builds and signs both App bundles, notarizes and staples both DMGs, recalculates checksums, generates Sparkle-signed `appcast-arm64.xml` and `appcast-x86_64.xml`, then creates the GitHub Release with all six assets. Both feeds are addressed through `releases/latest/download`; no GitHub Pages deployment is needed. A failure in either architecture blocks Release creation. Never replace assets under an existing version tag; create a higher version instead.
+Commit the new `VERSION`, wait for both main-branch builds to pass, then create and push the matching `vX.Y.Z` tag. Tags must match `VERSION` and exceed the latest published Release. Both architectures must pass before a release is created. With `SPARKLE_ED25519_PRIVATE_KEY` configured, the workflow signs both update feeds, uploads all six assets and publishes. With no Sparkle Secret, it creates a **draft** containing the two DMGs and checksums. It never publishes an unsigned or incomplete update feed.
 
-The first `0.4.0` installation from an older version still uses the DMG because older Apps do not contain an updater. From this version onward, the user clicks **立即更新** in the App to download, verify, install and reopen without handling a DMG. Users who enable automatic downloading instead receive the update on App exit.
+To finish a draft without exporting the local private key:
+
+1. Download the exact two DMGs and checksums from that tag's workflow or draft Release into `work/release-<version>/`. Verify the checksums. Do not sign locally rebuilt replacements for CI assets.
+2. Sign each downloaded installer directly through the Keychain:
+
+   ```sh
+   SPARKLE_KEYCHAIN_ACCOUNT=sleepguard ARCH=arm64 \
+     APPCAST_IMAGE="$PWD/work/release-<version>/SleepGuard-<version>-arm64.dmg" \
+     APPCAST_OUTPUT="$PWD/work/release-<version>/appcast-arm64.xml" \
+     scripts/build-appcast.sh
+   # Repeat with ARCH=x86_64 and the matching image/output names.
+   ```
+
+   Run from the checked-out release commit so `VERSION` and release notes match the installers. The signing tool reads the private key; it is never exported or printed.
+3. Verify both feeds and installer signatures with `work/sparkle-2.10.0/bin/sign_update --account sleepguard --verify`. Pass only the XML path for feed verification; pass the DMG path and its enclosure's `sparkle:edSignature` for package verification.
+4. Attach `appcast-arm64.xml` and `appcast-x86_64.xml` to the draft. Confirm all six filenames, then publish and read back the Release and both latest-feed URLs.
+
+Both feeds are addressed through `releases/latest/download`; no GitHub Pages deployment is needed. Published assets are immutable: use a higher version for fixes. The failed `v0.4.0` tag is retained; `v0.4.1` includes the menu height and publishing repairs.
+
+The first update-enabled installation from `0.3.x` still uses the DMG because older Apps do not contain an updater. Later updates use **立即更新** to download, verify, install and reopen without handling a DMG. Users who enable automatic downloading instead receive the update on App exit.
 
 ## Final acceptance
 
