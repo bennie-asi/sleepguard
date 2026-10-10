@@ -151,7 +151,6 @@ struct MenuPanel: View {
     @ObservedObject private var updater = UpdateController.shared
     @Environment(\.openWindow) private var openWindow
     @StateObject private var presentation = MenuPresentation()
-    @ViewState private var contentHeight: CGFloat = 1
     private func show(_ tab: ManagementTab) {
         presentation.dismiss()
         model.tab = tab
@@ -159,15 +158,15 @@ struct MenuPanel: View {
         NSApp.activate(ignoringOtherApps: true)
     }
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            panel.fixedSize(horizontal: false, vertical: true)
-                .background(GeometryReader { geometry in
-                    Color.clear.preference(key: MenuContentHeightKey.self, value: geometry.size.height)
-                })
+        MenuPanelLayout(maximumHeight: presentation.maximumHeight) {
+            ViewThatFits(in: .vertical) {
+                panel.fixedSize(horizontal: false, vertical: true)
+                ScrollView(.vertical, showsIndicators: false) {
+                    panel.fixedSize(horizontal: false, vertical: true)
+                }.frame(height: presentation.maximumHeight)
+            }
         }
-            .frame(width: 320, height: min(contentHeight, presentation.maximumHeight))
-            .scrollDisabled(contentHeight <= presentation.maximumHeight)
-            .onPreferenceChange(MenuContentHeightKey.self) { height in contentHeight = max(1, ceil(height)) }
+            .frame(width: 320)
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { notification in
                 if notification.object as? NSWindow === presentation.window { presentation.updateHeightLimit() }
             }
@@ -241,9 +240,18 @@ struct MenuPanel: View {
         }.buttonStyle(HoverButtonStyle())
     }
 }
-private struct MenuContentHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+// Always propose a bounded height before choosing the regular or scrolling panel.
+// The menu window can otherwise offer an unbounded size and clip the chosen view.
+private struct MenuPanelLayout: Layout {
+    let maximumHeight: CGFloat
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let view = subviews.first else { return .zero }
+        let size = view.sizeThatFits(ProposedViewSize(width: 320, height: maximumHeight))
+        return CGSize(width: 320, height: min(size.height, maximumHeight))
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
+    }
 }
 struct ManagementView: View {
     @ObservedObject var model: GuardModel

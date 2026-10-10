@@ -126,3 +126,10 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - [v0.3.3 发布构建](https://github.com/bennie-asi/sleepguard/actions/runs/38048270462) 的 Apple Silicon、Intel 与 release job 均成功。[正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.3.3) 公开，含两个 DMG 与对应 SHA-256 文件，四个资产状态均回读为 uploaded。
 
 本轮未验证 Developer ID 下的实际服务注册、Intel 原生交互、重新登录和跨夜休眠；没有结束用户应用或发送 Telegram 消息。
+
+## 0.4.1 菜单高度与发布修复
+
+- 菜单布局向内容提出有上限的高度，短内容自然收缩，长内容选择隐藏滚动条的滚动区域。上限为 640 点，且不超过当前显示器可用高度减 16 点；显示器变化时重新计算。
+- 使用实际 `MenuPanel` 编译临时原生验收窗口：短内容无滚动区域；加入 40 行临时文字后出现滚动区域，实际滚动到末尾；清除临时文字后窗口恢复短内容高度。临时窗口没有启动后台、更新器或读取用户配置。该结果验证菜单组件；本轮自动化未能定位运行中的 SleepGuard 菜单窗口，实际菜单栏入口和多显示器切换仍需验收。
+- 本机 `make check-ui`、Go race/vet、arm64 App 编译、严格包检查和工作流 YAML 解析通过。`v0.4.0` 的双架构 main 构建通过；标签发布被新增的 Apple 证书必填检查阻止。已改为 Apple 凭据可选、缺少 Sparkle Secret 时生成待签署清单的草稿。
+- `v0.4.0` 标签保留不移动；新的菜单及发布修复使用 `v0.4.1`。发布成功后在项目记忆补充流水线和资产验签结果。
