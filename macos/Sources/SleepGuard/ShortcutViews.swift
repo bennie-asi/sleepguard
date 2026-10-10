@@ -4,40 +4,59 @@ import SwiftUI
 struct ShortcutsSection: View {
     @ObservedObject var controller: ShortcutController
     @ViewState private var editing: ShortcutAction?
+    @ViewState private var errors: [ShortcutAction: String] = [:]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        SectionBox {
-            ForEach(ShortcutAction.allCases) { action in
-                HStack {
-                    Text(action.title); Spacer()
-                    Button(controller.bindings[action]?.label ?? "录入快捷键") { editing = action }.controlSize(.small)
-                    if controller.bindings[action] != nil {
-                        Button { try? controller.assign(nil, to: action) } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }.buttonStyle(HoverButtonStyle()).accessibilityLabel("清除\(action.title)快捷键")
+        VStack(alignment: .leading, spacing: 8) {
+            SectionBox {
+                ForEach(ShortcutAction.allCases) { action in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
+                            Label(action.title, systemImage: action.icon)
+                            Spacer()
+                            Button(editing == action ? "请按组合键…" : controller.bindings[action]?.label ?? "未设置") { begin(action) }
+                                .monospaced().frame(minWidth: 108).padding(.vertical, 6)
+                                .buttonStyle(HoverButtonStyle(selected: editing == action))
+                                .foregroundStyle(editing == action ? Color.accentColor : .secondary)
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(editing == action ? Color.accentColor : Color.primary.opacity(0.12)))
+                                .accessibilityLabel("设置\(action.title)快捷键")
+                                .accessibilityValue(editing == action ? "录入中" : controller.bindings[action]?.label ?? "未设置")
+                            if controller.bindings[action] != nil {
+                                Button { do { try controller.assign(nil, to: action); errors[action] = nil; end() } catch { errors[action] = error.localizedDescription } } label: { Image(systemName: "xmark.circle").frame(width: 24, height: 24) }
+                                    .buttonStyle(HoverButtonStyle()).foregroundStyle(.secondary).accessibilityLabel("清除\(action.title)快捷键")
+                            }
+                        }
+                        if let error = errors[action] { Text(error).font(.caption).foregroundStyle(.orange) }
+                        if editing == action {
+                            KeyRecorder { event in
+                                if [48, 53].contains(event.keyCode) { end(); return }
+                                do { accept(try Shortcut.capture(event), for: action) }
+                                catch { errors[action] = error.localizedDescription }
+                            }.frame(width: 0, height: 0).accessibilityHidden(true)
+                        }
                     }
-                }.padding(14)
-                if action != .open { Divider() }
+                    .padding(14)
+                    if action != .open { Divider() }
+                }
+                if let failure = controller.failure { Text(failure).font(.caption).foregroundStyle(.orange).padding(14) }
             }
-            if let failure = controller.failure { Text(failure).font(.caption).foregroundStyle(.orange).padding(14) }
-        }.sheet(item: $editing) { action in ShortcutEditor(controller: controller, action: action) }
+            Text(editing == nil ? "点击录入组合键，Esc 取消。常用系统快捷键和重复组合不可用。" : "按下两个以上修饰键，加字母、数字或 F1–F19；Esc 取消。")
+                .font(.caption).foregroundStyle(.secondary)
+        }.animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: editing)
+            .onDisappear { end() }
     }
-}
-private struct ShortcutEditor: View {
-    @ObservedObject var controller: ShortcutController
-    let action: ShortcutAction
-    @Environment(\.dismiss) private var dismiss
-    @ViewState private var error: String?
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "keyboard").font(.largeTitle).foregroundStyle(.blue)
-            Text(action.title).font(.title3.weight(.semibold))
-            Text("按下至少两个修饰键，再加一个字母或数字。\n常用系统快捷键和重复组合无法使用。").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            if let error { Text(error).font(.caption).foregroundStyle(.orange) }
-            Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
-            KeyRecorder { event in
-                if event.keyCode == 53 { dismiss(); return }
-                do { try controller.assign(Shortcut.capture(event), to: action); dismiss() }
-                catch { self.error = error.localizedDescription }
-            }.frame(width: 1, height: 1)
-        }.padding(28).frame(width: 370)
+    private func begin(_ action: ShortcutAction) {
+        if editing == action { end(); return }
+        editing = action; errors[action] = nil
+        controller.recordingCapture = { shortcut in accept(shortcut, for: action) }
+    }
+    private func accept(_ shortcut: Shortcut, for action: ShortcutAction) {
+        do { try controller.assign(shortcut, to: action); errors[action] = nil; end() }
+        catch { errors[action] = error.localizedDescription }
+    }
+    private func end() {
+        if let editing { errors[editing] = nil }
+        editing = nil; controller.recordingCapture = nil
     }
 }
 private struct KeyRecorder: NSViewRepresentable {

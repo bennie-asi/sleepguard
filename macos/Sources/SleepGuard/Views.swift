@@ -3,8 +3,12 @@ import SwiftUI
 
 struct AppIcon: View {
     var path: String
+    private var iconPath: String {
+        guard let range = path.range(of: ".app/") else { return path }
+        return String(path[..<range.lowerBound]) + ".app"
+    }
     var body: some View {
-        Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable().frame(width: 30, height: 30)
+        Image(nsImage: NSWorkspace.shared.icon(forFile: iconPath)).resizable().frame(width: 30, height: 30)
     }
 }
 struct QuietNotice: View {
@@ -119,7 +123,16 @@ struct MenuPanel: View {
         openWindow(id: "management")
         NSApp.activate(ignoringOtherApps: true)
     }
+    private var maximumHeight: CGFloat { max(300, min(720, (presentation.window?.screen ?? NSScreen.main)?.visibleFrame.height ?? 800) - 60) }
     var body: some View {
+        ViewThatFits(in: .vertical) {
+            panel
+            ScrollView(showsIndicators: false) { panel }.frame(height: maximumHeight)
+        }.frame(width: 320).frame(maxHeight: maximumHeight)
+            .onReceive(NotificationCenter.default.publisher(for: .sleepGuardDismissMenu)) { _ in presentation.dismiss() }
+            .background(MenuWindowReader(presentation: presentation).frame(width: 0, height: 0).accessibilityHidden(true))
+    }
+    private var panel: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: "moon.stars").font(.title2).foregroundStyle(.blue).frame(width: 34, height: 34).background(Color.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
@@ -133,19 +146,13 @@ struct MenuPanel: View {
                     HStack { Text("空闲 \(ClockText.duration(status.snapshot.idleSeconds))"); Spacer(); Text(status.snapshot.powerSource == "AC Power" ? "外接电源" : status.snapshot.powerSource) }.font(.system(size: 12)).foregroundStyle(.secondary).padding(.top, 8)
                 }
             }.padding(.horizontal, 16).padding(.bottom, 16)
-            if let status = model.status, !status.assessment.candidates.isEmpty {
+            if !model.applicationCandidates.isEmpty {
                 Divider()
                 VStack(alignment: .leading, spacing: 10) {
-                    ForEach(status.assessment.candidates.prefix(3)) { candidate in
+                    ForEach(model.applicationCandidates.prefix(3)) { candidate in
                         Button { show(.status) } label: {
                             HStack { AppIcon(path: candidate.target?.path ?? ""); VStack(alignment: .leading, spacing: 3) { Text(candidate.label).lineLimit(1); Text(candidate.actionLabel).font(.caption).foregroundStyle(.secondary) }; Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary) }.padding(8).contentShape(Rectangle())
                         }.buttonStyle(HoverButtonStyle()).accessibilityLabel("查看 \(candidate.label) 状态")
-                        if candidate.target?.protected == false {
-                            HStack {
-                                Button("结束应用") { presentation.dismiss(); model.confirmManualAction(candidate, force: false) }
-                                Spacer(); Button("强制结束", role: .destructive) { presentation.dismiss(); model.confirmManualAction(candidate, force: true) }
-                            }.controlSize(.small).padding(.horizontal, 8).disabled(model.busy)
-                        }
                     }
                 }.padding(8)
             }
@@ -162,8 +169,8 @@ struct MenuPanel: View {
             }.padding(16).disabled(model.busy)
             Divider()
             HStack(spacing: 8) {
-                Button { presentation.dismiss(); Task { await model.blackout() } } label: { Label("所有屏幕黑屏", systemImage: "display").frame(maxWidth: .infinity).padding(.vertical, 10) }.buttonStyle(HoverButtonStyle())
-                Button { presentation.dismiss(); model.lockScreen() } label: { Label("锁屏", systemImage: "lock").frame(maxWidth: .infinity).padding(.vertical, 10) }.buttonStyle(HoverButtonStyle())
+                ScreenQuickButton(title: "黑屏", detail: "所有屏幕 · 不锁屏", icon: "display") { presentation.dismiss(); Task { await model.blackout() } }
+                ScreenQuickButton(title: "锁屏", detail: "立即锁定桌面", icon: "lock") { presentation.dismiss(); model.lockScreen() }
             }.padding(8).disabled(model.busy)
             Divider()
             VStack(spacing: 1) {
@@ -180,9 +187,8 @@ struct MenuPanel: View {
                 Button { presentation.dismiss(); NSApp.terminate(nil) } label: { Text("退出").font(.system(size: 12)).padding(6) }.buttonStyle(HoverButtonStyle()).foregroundStyle(.secondary)
             }.padding(.horizontal, 12).padding(.vertical, 6)
             if let error = model.error { Text(error).font(.caption).foregroundStyle(.red).padding(12) }
+            if let failure = model.refreshFailure { Text(failure).font(.caption).foregroundStyle(.orange).padding(12) }
         }.frame(width: 320)
-            .onReceive(NotificationCenter.default.publisher(for: .sleepGuardDismissMenu)) { _ in presentation.dismiss() }
-            .background(MenuWindowReader(presentation: presentation).frame(width: 0, height: 0).accessibilityHidden(true))
     }
     private func menuButton(_ label: String, icon: String, tab: ManagementTab) -> some View {
         Button { show(tab) } label: {
@@ -267,15 +273,17 @@ struct SaveBar: View {
 struct StatusPage: View {
     @ObservedObject var model: GuardModel
     var body: some View {
-        PageHeading(title: "当前状态", detail: model.status.map { "最近检查：\(ClockText.time($0.snapshot.at))" } ?? "正在读取…") {
+        PageHeading(title: "当前状态", detail: model.status.map { "最近检查：\(ClockText.preciseTime($0.snapshot.at))" } ?? "尚未读取状态") {
             HStack(spacing: 8) {
                 if model.status?.paused != true { PauseMenu(model: model) }
                 RefreshButton(isRefreshing: model.refreshing, unavailable: model.busy) { await model.refresh(userInitiated: true) }
             }
         }
+        if let failure = model.refreshFailure { QuietNotice(text: failure + (model.status == nil ? "" : " 显示的是上次成功读取的状态。"), warning: true) }
         if let status = model.status {
             StatusSummary(model: model, status: status)
-            ForEach(status.assessment.candidates) { candidate in
+            if model.applicationCandidates.isEmpty { EmptyStateRow(icon: "checkmark.shield", title: "暂无阻塞休眠的应用", detail: "系统和外设请求可在下方展开查看。") }
+            ForEach(model.applicationCandidates) { candidate in
                 SectionBox {
                     HStack { AppIcon(path: candidate.target?.path ?? ""); VStack(alignment: .leading, spacing: 4) { Text(candidate.label).font(.headline); Text(candidate.target.map { "PID \($0.pid) · \($0.bundleId ?? $0.path)" } ?? "责任应用未确定").font(.caption).foregroundStyle(.secondary) }; Spacer(); Text(candidate.actionLabel).font(.caption).foregroundStyle(.secondary) }.padding(14)
                     if let incident = status.incidents.first(where: { $0.key == candidate.key }) {
@@ -286,14 +294,18 @@ struct StatusPage: View {
                         }
                     }
                     Divider()
-                    HStack(spacing: 12) {
-                        Button("结束应用") { model.confirmManualAction(candidate, force: false) }
-                        Button("强制结束", role: .destructive) { model.confirmManualAction(candidate, force: true) }
-                        Spacer()
-                        if candidate.target?.protected != false { Text("此请求仅供诊断").font(.caption).foregroundStyle(.secondary) }
-                    }.padding(14).disabled(model.busy || candidate.target?.protected != false)
-                    Divider()
                     VStack(alignment: .leading, spacing: 8) { ForEach(candidate.assertions) { assertion in VStack(alignment: .leading, spacing: 3) { Text(assertion.type).font(.system(size: 11, design: .monospaced)); Text(assertion.name).font(.caption).foregroundStyle(.secondary) } } }.frame(maxWidth: .infinity, alignment: .leading).padding(14)
+                    Divider()
+                    HStack {
+                        Text("手动操作不受自动结束开关影响。").font(.caption).foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        Button("调整规则") { model.tab = .rules }.buttonStyle(HoverButtonStyle()).padding(.vertical, 4)
+                    }.padding(.horizontal, 14).padding(.top, 10)
+                    HStack(spacing: 12) {
+                        Button("结束应用…") { model.confirmManualAction(candidate, force: false) }
+                        Button("强制结束…", role: .destructive) { model.confirmManualAction(candidate, force: true) }.tint(.red)
+                        Spacer()
+                    }.padding(14).disabled(model.busy)
                 }
             }
             Text("电源与休眠配置").font(.caption).foregroundStyle(.secondary)
@@ -301,9 +313,10 @@ struct StatusPage: View {
                 statusRow("当前电源", status.snapshot.powerSource == "AC Power" ? "外接电源" : status.snapshot.powerSource == "Battery Power" ? "电池" : status.snapshot.powerSource)
                 Divider(); statusRow("用户空闲", ClockText.duration(status.snapshot.idleSeconds))
                 Divider(); statusRow("自动系统休眠 / 熄屏", "\(status.snapshot.sleepMinutes) 分钟 / \(status.snapshot.displayMinutes) 分钟")
+                if let config = model.configuration { Divider(); statusRow("额外等待时间", ClockText.duration(config.monitor.grace)) }
                 Divider(); statusRow("显示器", status.snapshot.displayAsleep ? "已熄屏" : "亮起")
             }
-            ExpandableSection("系统与外设请求") {
+            ExpandableSection("系统与外设请求 · 仅供诊断") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("以下为系统诊断信息。").font(.caption).foregroundStyle(.secondary)
                     ForEach(status.snapshot.assertions) { assertion in Text("\(assertion.holder.name) · \(assertion.type)\n\(assertion.name)").font(.system(size: 11, design: .monospaced)).textSelection(.enabled) }
@@ -311,7 +324,8 @@ struct StatusPage: View {
                     ForEach(status.snapshot.diagnostics ?? [], id: \.self) { Text($0).font(.caption) }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
             }.font(.caption)
-        } else { ProgressView("读取状态…").frame(maxWidth: .infinity) }
+        } else if model.refreshing { ProgressView("读取状态…").frame(maxWidth: .infinity) }
+        else { Text("可点击右上角重试刷新。").font(.caption).foregroundStyle(.secondary) }
     }
     private func statusRow(_ name: String, _ value: String) -> some View { HStack { Text(name); Spacer(); Text(value).foregroundStyle(.secondary) }.padding(14) }
     private func processingText(_ incident: Incident) -> String {
@@ -493,14 +507,7 @@ struct SettingsPage: View {
         PageHeading(title: "监控设置", detail: "设置检测节奏和等待时间。") { EmptyView() }
         SectionBox { ServiceControlRow(model: model) }
         Text("屏幕操作").font(.caption).foregroundStyle(.secondary)
-        SectionBox {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) { Label("所有屏幕黑屏", systemImage: "display"); Text("不锁屏，后台继续运行；任意输入恢复。").font(.caption).foregroundStyle(.secondary) }
-                Spacer(); Button("立即黑屏") { Task { await model.blackout() } }.disabled(model.busy)
-            }.padding(14)
-            Divider()
-            HStack { Label("锁定屏幕", systemImage: "lock"); Spacer(); Button("立即锁屏") { model.lockScreen() } }.padding(14)
-        }
+        ScreenOperationsSection(model: model)
         Text("全局快捷键").font(.caption).foregroundStyle(.secondary)
         ShortcutsSection(controller: model.shortcuts)
         SectionBox {

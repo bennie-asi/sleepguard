@@ -83,3 +83,17 @@ this run, so these are not marked verified. Real Telegram delivery and older
 macOS versions remain unverified.
 
 Additional native process acceptance: a disposable, project-built IOPM assertion holder was started twice. A stale start-time request was rejected while it remained running; the valid normal request ended it with SIGTERM, and the valid force request ended a second fixture with SIGKILL. All four request/result events were read back from an isolated database. No user application was signalled. Zombie status is handled as exited after signal delivery, rather than reported as a timeout. The system lock symbol resolves on macOS 27; the lock action itself was not invoked.
+
+## 刷新卡住修复与原型差异补齐（2026-10-10）
+
+- 现场进程采样显示 Swift 后台线程卡在 `NSConcreteTask.waitUntilExit`；此时没有仍在运行的 Go 子进程。独立 CLI 的状态、配置、历史查询都在 0.1 秒内完成。问题来自 async 任务恢复到不同线程后等待 NSTask 的退出通知。
+- 后台命令移除 `waitUntilExit`，改为有截止时间的异步退出检查；取消会结束本次子进程，忽略 SIGTERM 的子进程也不会让超时清理永久等待。状态查询最多等待 12 秒后恢复刷新按钮；错误显示在页内，保留上次成功读取的状态。
+- `make check-ui` 通过。新增检查连续启动 40 次命令、512 KiB 输入输出、命令失败、忽略 SIGTERM 的超时、取消后的子进程清理，以及失败后的再次成功查询。快捷键检查覆盖功能键、重复组合、系统保留组合和被占用时保留旧组合。
+- 重启前确认没有运行中的 watcher。新版本实际点击状态页刷新后显示“状态已更新”，时间更新到秒，刷新按钮恢复可点击；后台定期刷新也持续更新时间。没有修改用户的规则、时间配置或自动处理选项。
+- 快捷键与原型一致，直接在行内录入。界面录入 `⌃⌥⇧F19` 成功；录入锁屏快捷键时再次按该组合显示重复错误，未触发黑屏；Esc 取消。测试组合随后清除，三个快捷键均恢复未设置。
+- 新增规则默认打开搜索列表并聚焦搜索框。分类与搜索固定在顶部；输入 Windows、按方向键再回车后选择 Windows App，列表收起并显示其 Bundle ID。Esc 先收起列表，再取消对话框；规则页仍显示“未修改”。目录扫描包括 Applications 内的子目录，并跳过 app 包内的辅助程序。
+- 设置页显示实际连接的内置 Retina 显示器和 2490W1。点击黑屏后捕获到纯黑遮罩，按 Esc 直接恢复管理窗口，无需解锁。CLI 回读确认黑屏相关 IOPM assertion 为 0，历史记录包含 `blackout_started` 与 `blackout_ended`。未逐屏单独采集像素，也未执行热插拔验收。
+- 历史页滚动到底部后，点击“日志与数据”标题右侧的空白区域可展开；没有滚动条。正常结束 Windows App 的确认显示 Bundle ID、PID 与退出说明，点击取消后该应用仍在运行，没有发送信号。
+- 菜单快捷操作使用两行标题与说明；过高的菜单可滚动且隐藏滚动条。状态页将受保护的系统请求放在诊断展开区，保留应用卡片的手动操作和调整规则入口。菜单整条导航的关闭逻辑仍共用 `MenuPresentation.dismiss`。
+
+本轮原生窗口控制恢复，但系统菜单栏清单查询仍超时，菜单图标无法稳定定位。因此完整菜单展开、各入口关闭与再次展开尚未重新实测。实际锁屏、真实 GUI 应用退出保存提示、显示器热插拔、Finder 拖拽安装、Telegram 真实发送、Intel 与旧版 macOS 仍按未验证记录。

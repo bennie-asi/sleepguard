@@ -47,6 +47,7 @@ import Darwin
         for window in covers { window.close() }; covers.removeAll()
         for screen in NSScreen.screens {
             let window = Cover(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false, screen: screen)
+            window.title = screen.localizedName + " · SleepGuard 黑屏"
             window.setFrame(screen.frame, display: true)
             window.backgroundColor = .black
             window.isOpaque = true; window.hasShadow = false; window.isReleasedWhenClosed = false

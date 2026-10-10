@@ -32,10 +32,12 @@ import Foundation
         }
     }
     nonisolated private static func installedApplications() -> [CatalogApp] {
-        let directories = ["/Applications", "/Applications/Utilities", "/System/Applications", "/System/Applications/Utilities", NSHomeDirectory() + "/Applications"]
+        let directories = ["/Applications", "/System/Applications", NSHomeDirectory() + "/Applications"]
         var result: [CatalogApp] = []
         for directory in directories {
-            for url in (try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: directory), includingPropertiesForKeys: nil)) ?? [] where url.pathExtension == "app" {
+            guard let files = FileManager.default.enumerator(at: URL(fileURLWithPath: directory), includingPropertiesForKeys: nil, options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { continue }
+            for case let url as URL in files where url.pathExtension == "app" {
+                files.skipDescendants()
                 guard let bundle = Bundle(url: url), let executable = bundle.executableURL else { continue }
                 let bundleId = bundle.bundleIdentifier ?? "", path = executable.resolvingSymlinksInPath().path
                 let name = (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String) ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String) ?? url.deletingPathExtension().lastPathComponent

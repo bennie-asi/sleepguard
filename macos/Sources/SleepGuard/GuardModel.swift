@@ -74,6 +74,7 @@ import UserNotifications
     }
     @Published private(set) var serviceOperation: ServiceOperation?
     @Published private(set) var refreshing = false
+    @Published private(set) var refreshFailure: String?
     @Published private(set) var refreshingHistory = false
     @Published private(set) var quitting = false
     @Published var permission: UNAuthorizationStatus = .notDetermined
@@ -103,6 +104,7 @@ import UserNotifications
         return nil
     }
     var channels: [NotificationChannel] { configuration?.channels ?? [] }
+    var applicationCandidates: [Candidate] { status?.assessment.candidates.filter { $0.target?.protected == false } ?? [] }
     var systemEnabled: Bool { configuration?.notifications.systemEnabled ?? false }
     var enabledChannels: Int { (systemEnabled ? 1 : 0) + channels.filter { $0.enabled && $0.ready }.count }
     var permissionText: String {
@@ -110,11 +112,12 @@ import UserNotifications
     }
     var menuSymbol: String { status?.watcherRunning != true ? "moon.zzz" : status?.paused == true ? "pause.circle" : status?.assessment.eligible == true ? "exclamationmark.circle" : "moon.stars" }
     var headline: String {
-        guard let status else { return "正在读取状态…" }
+        guard let status else { return refreshFailure == nil ? "正在读取状态…" : "暂时无法读取状态" }
         if let serviceOperation { return serviceOperation.title }
         if !status.watcherRunning { return "后台服务未运行" }
         if status.paused { return "提醒与处理已暂停" }
-        return status.assessment.eligible ? "\(status.assessment.candidates.count) 个应用需要关注" : "暂未发现休眠异常"
+        if status.assessment.eligible { return applicationCandidates.isEmpty ? "有休眠请求需要关注" : "\(applicationCandidates.count) 个应用需要关注" }
+        return "暂未发现休眠异常"
     }
     var historyGroups: [HistoryGroup] {
         var groups: [HistoryGroup] = [], indices: [String: Int] = [:]
@@ -156,12 +159,15 @@ import UserNotifications
     func refresh(userInitiated: Bool = false) async {
         guard !refreshing, serviceOperation == nil, !quitting else { return }; refreshing = true; defer { refreshing = false }
         do {
-            status = try await backend.status()
+            let latest = try await backend.status()
             let envelope = try await backend.configuration()
+            guard serviceOperation == nil, !quitting else { return }
+            status = latest
             load(envelope.config, resetRules: !dirtyRules, resetSettings: !dirtySettings)
+            refreshFailure = nil
             if tab == .history { await reloadHistory() }
             if userInitiated { information = "状态已更新。" }
-        } catch { self.error = error.localizedDescription }
+        } catch { refreshFailure = error.localizedDescription }
         // Permission lookup must not hold the status refresh gate while waiting for macOS.
         if permissionTask == nil {
             permissionTask = Task { [weak self] in

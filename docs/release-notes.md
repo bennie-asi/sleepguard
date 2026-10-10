@@ -4,7 +4,9 @@ SleepGuard is a native macOS menu bar app for sleep diagnostics and screen contr
 - macOS notifications and multiple Telegram channels; tokens stay in Keychain.
 - Unified native credential access; background delivery never prompts for a password.
 - Confirmed manual quit / force quit with current assertion and process checks.
-- All-display blackout, lock screen and configurable global shortcuts.
+- All-display blackout with connected display previews, lock screen and inline global shortcut recording (including F1–F19).
+- Searchable, grouped application selection with arrow-key navigation and manual entry.
+- Bounded, cancellable background commands; refresh errors leave the UI available for retry.
 - Standard drag-to-Applications DMG installers for Apple Silicon and Intel.
 
 Download `arm64` for Apple Silicon or `x86_64` for Intel. Drag SleepGuard.app to

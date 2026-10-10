@@ -6,6 +6,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case blackout, lock, open
     var id: String { rawValue }
     var title: String { switch self { case .blackout: "所有屏幕黑屏"; case .lock: "锁定屏幕"; case .open: "打开 SleepGuard" } }
+    var icon: String { switch self { case .blackout: "display"; case .lock: "lock"; case .open: "moon.stars" } }
     var number: UInt32 { switch self { case .blackout: 1; case .lock: 2; case .open: 3 } }
 }
 struct Shortcut: Codable, Equatable {
@@ -17,20 +18,31 @@ struct Shortcut: Codable, Equatable {
     var carbonModifiers: UInt32 {
         (flags.contains(.control) ? UInt32(controlKey) : 0) | (flags.contains(.option) ? UInt32(optionKey) : 0) | (flags.contains(.shift) ? UInt32(shiftKey) : 0) | (flags.contains(.command) ? UInt32(cmdKey) : 0)
     }
+    // macOS function keys have non-contiguous virtual key codes.
+    private static let functionKeys: [UInt32: String] = [
+        122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6",
+        98: "F7", 100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12",
+        105: "F13", 107: "F14", 113: "F15", 106: "F16", 64: "F17", 79: "F18", 80: "F19"
+    ]
     static func capture(_ event: NSEvent) throws -> Shortcut {
         let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
-        let key = (event.charactersIgnoringModifiers ?? "").uppercased()
-        guard flags.rawValue.nonzeroBitCount >= 2, key.count == 1,
-              key.range(of: "^[A-Z0-9]$", options: .regularExpression) != nil else { throw BackendFailure(message: "请使用至少两个修饰键，加一个字母或数字。") }
+        let key = functionKeys[UInt32(event.keyCode)] ?? (event.charactersIgnoringModifiers ?? "").uppercased()
+        guard flags.rawValue.nonzeroBitCount >= 2,
+              key.range(of: "^(?:[A-Z0-9]|F(?:[1-9]|1[0-9]))$", options: .regularExpression) != nil else { throw BackendFailure(message: "请使用至少两个修饰键，加一个字母、数字或功能键。") }
         let shortcut = Shortcut(keyCode: UInt32(event.keyCode), modifiers: flags.rawValue, key: key)
         try shortcut.validate()
         return shortcut
     }
     func validate() throws {
-        guard flags.rawValue.nonzeroBitCount >= 2, keyCode <= 127, key.range(of: "^[A-Z0-9]$", options: .regularExpression) != nil else { throw BackendFailure(message: "快捷键格式无效。") }
+        let allowedFlags: NSEvent.ModifierFlags = [.control, .option, .shift, .command]
+        guard flags == flags.intersection(allowedFlags), flags.rawValue.nonzeroBitCount >= 2, keyCode <= 127,
+              key.range(of: "^(?:[A-Z0-9]|F(?:[1-9]|1[0-9]))$", options: .regularExpression) != nil,
+              !key.hasPrefix("F") || key.count == 1 || Self.functionKeys[keyCode] == key else { throw BackendFailure(message: "快捷键格式无效。") }
         if (flags == [.control, .command] && key == "Q") ||
             (flags.contains([.command, .shift]) && key == "Q") ||
-            (flags.contains([.command, .shift]) && ["3", "4", "5", "6"].contains(key)) {
+            (flags.contains([.command, .shift]) && ["3", "4", "5", "6"].contains(key)) ||
+            (flags == [.command, .option] && ["D", "H", "M"].contains(key)) ||
+            (flags == [.control, .shift] && ["F2", "F3", "F4", "F5", "F6", "F7", "F8"].contains(key)) {
             throw BackendFailure(message: "此组合是常用系统快捷键，请换一个。")
         }
     }
@@ -44,7 +56,11 @@ private func sleepGuardHotkey(_ next: EventHandlerCallRef?, _ event: EventRef?, 
     let number = identifier.id
     MainActor.assumeIsolated {
         let controller = Unmanaged<ShortcutController>.fromOpaque(UnsafeMutableRawPointer(bitPattern: address)!).takeUnretainedValue()
-        if let action = ShortcutAction.allCases.first(where: { $0.number == number }) { controller.onAction?(action) }
+        if let action = ShortcutAction.allCases.first(where: { $0.number == number }) {
+            // Recording an existing binding must never black out or lock the desktop.
+            if let capture = controller.recordingCapture, let shortcut = controller.bindings[action] { capture(shortcut) }
+            else { controller.onAction?(action) }
+        }
     }
     return noErr
 }
@@ -52,6 +68,7 @@ private func sleepGuardHotkey(_ next: EventHandlerCallRef?, _ event: EventRef?, 
     @Published private(set) var bindings: [ShortcutAction: Shortcut] = [:]
     @Published var failure: String?
     var onAction: ((ShortcutAction) -> Void)?
+    var recordingCapture: ((Shortcut) -> Void)?
     private var references: [ShortcutAction: EventHotKeyRef] = [:]
     private var handler: EventHandlerRef?
     private var attempted = false

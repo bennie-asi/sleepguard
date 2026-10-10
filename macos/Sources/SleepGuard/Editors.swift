@@ -12,7 +12,10 @@ struct RuleEditor: View {
     @ViewState private var rule: AppRule
     @ViewState private var selected = ""
     @ViewState private var group = "全部"
-    @FocusState private var searchFocused: Bool
+    @ViewState private var browserOpen: Bool
+    @ViewState private var highlighted: String?
+    @FocusState private var manualNameFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ViewState private var match = "bundle"
     @ViewState private var identity = ""
     @ViewState private var error: String?
@@ -21,6 +24,7 @@ struct RuleEditor: View {
         self.model = model; self.item = item
         _rule = State(initialValue: item.rule)
         _selected = State(initialValue: item.originalID == nil ? "" : item.rule.id)
+        _browserOpen = State(initialValue: item.originalID == nil)
         _match = State(initialValue: item.rule.bundleId.isEmpty && !item.rule.path.isEmpty ? "path" : "bundle")
         _identity = State(initialValue: item.rule.id)
     }
@@ -33,37 +37,57 @@ struct RuleEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(item.originalID == nil ? "添加应用规则" : "编辑应用规则").font(.title2.weight(.semibold))
-            HStack {
-                TextField("搜索应用、Bundle ID 或路径", text: $search).accessibilityLabel("搜索应用").focused($searchFocused)
-                    .onSubmit { if let first = filteredCatalog.first { selected = first.id } }
-                Button(selected == "manual" ? "从列表选择" : "手动填写") { selected = selected == "manual" ? "" : "manual"; searchFocused = selected != "manual" }.controlSize(.small)
+            HStack(spacing: 10) {
+                Button {
+                    if selected == "manual" { selected = ""; identity = "" }
+                    browserOpen.toggle(); highlighted = nil
+                } label: {
+                    HStack(spacing: 10) {
+                        if let chosen { AppIcon(path: chosen.appPath) }
+                        Text(selected == "manual" ? "手动填写" : identity.isEmpty ? "选择应用…" : rule.label).lineLimit(1)
+                        Spacer(minLength: 10)
+                        Image(systemName: "chevron.down").font(.caption).foregroundStyle(.secondary).rotationEffect(.degrees(browserOpen ? 180 : 0))
+                    }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.12)))
+                }.buttonStyle(HoverButtonStyle(selected: browserOpen)).accessibilityLabel("选择应用")
+                Button(selected == "manual" ? "从列表选择" : "手动填写") {
+                    if selected == "manual" { selected = ""; identity = ""; browserOpen = true }
+                    else { selected = "manual"; identity = ""; rule.name = ""; match = "bundle"; browserOpen = false; manualNameFocused = true }
+                }.controlSize(.small)
             }
             if selected != "manual" {
-                Picker("应用分类", selection: $group) { ForEach(["全部", "已启动", "后台任务", "未启动"], id: \.self) { Text($0).tag($0) } }.pickerStyle(.segmented)
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(alignment: .leading, spacing: 3) {
-                        ForEach(["已启动", "后台任务", "未启动"], id: \.self) { category in
-                            let apps = filteredCatalog.filter { $0.group == category }
-                            if !apps.isEmpty {
-                                Text(category).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.top, 8)
-                                ForEach(apps) { app in
-                                    Button { selected = app.id } label: {
-                                        HStack(spacing: 10) {
-                                            AppIcon(path: app.appPath)
-                                            VStack(alignment: .leading, spacing: 3) { Text(app.name).lineLimit(1); Text(app.bundleId.isEmpty ? app.path : app.bundleId).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
-                                            Spacer(); if selected == app.id { Image(systemName: "checkmark.circle.fill").foregroundStyle(.blue) }
-                                        }.padding(9).contentShape(Rectangle())
-                                    }.buttonStyle(HoverButtonStyle(selected: selected == app.id))
+                if browserOpen {
+                    AppSearchField(text: $search, focus: browserOpen, navigate: navigate, select: selectHighlighted, cancel: { browserOpen = false })
+                        .frame(height: 24)
+                    Picker("应用分类", selection: $group) { ForEach(["全部", "已启动", "后台任务", "未启动"], id: \.self) { Text($0).tag($0) } }.pickerStyle(.segmented)
+                    ScrollViewReader { scroll in
+                        ScrollView(showsIndicators: false) {
+                            LazyVStack(alignment: .leading, spacing: 3) {
+                                ForEach(["已启动", "后台任务", "未启动"], id: \.self) { category in
+                                    let apps = filteredCatalog.filter { $0.group == category }
+                                    if !apps.isEmpty {
+                                        Text(category).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.top, 8)
+                                        ForEach(apps) { app in
+                                            Button { choose(app) } label: {
+                                                HStack(spacing: 10) {
+                                                    AppIcon(path: app.appPath)
+                                                    VStack(alignment: .leading, spacing: 3) { Text(app.name).lineLimit(1); Text(app.bundleId.isEmpty ? app.path : app.bundleId).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                                                    Spacer(); if selected == app.id { Image(systemName: "checkmark.circle.fill").foregroundStyle(.blue) }
+                                                }.padding(9).contentShape(Rectangle())
+                                            }.buttonStyle(HoverButtonStyle(selected: selected == app.id || highlighted == app.id)).id(app.id)
+                                        }
+                                    }
                                 }
+                                if model.catalogLoading { ProgressView("正在读取应用…").controlSize(.small).padding(12) }
+                                else if filteredCatalog.isEmpty { Text("没有找到应用，可换个名称或手动填写。").font(.caption).foregroundStyle(.secondary).padding(12) }
                             }
-                        }
-                        if model.catalogLoading { ProgressView("正在读取应用…").controlSize(.small).padding(12) }
-                        else if filteredCatalog.isEmpty { Text("没有找到应用，可换个名称或手动填写。").font(.caption).foregroundStyle(.secondary).padding(12) }
+                        }.frame(height: 220).background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 8))
+                            .onChange(of: highlighted) { id in if let id { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { scroll.scrollTo(id) } } }
                     }
-                }.frame(height: 220).background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 8))
-                if !identity.isEmpty { Text("已选：" + rule.label).font(.caption).foregroundStyle(.blue) }
+                }
+                if !identity.isEmpty { Text(identity).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled) }
             } else {
-                LabeledContent("显示名称") { TextField("例如：网易云音乐", text: $rule.name) }
+                LabeledContent("显示名称") { TextField("例如：网易云音乐", text: $rule.name).focused($manualNameFocused) }
                 Picker("匹配方式", selection: $match) { Text("Bundle ID").tag("bundle"); Text("可执行文件路径").tag("path") }.pickerStyle(.segmented)
                 TextField(match == "bundle" ? "com.example.app" : "/Applications/Example.app/Contents/MacOS/Example", text: $identity).accessibilityLabel(match == "bundle" ? "Bundle ID" : "可执行文件绝对路径")
             }
@@ -77,12 +101,32 @@ struct RuleEditor: View {
                 Button(item.originalID == nil ? "添加规则" : "保存规则") { save() }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
             }
         }.padding(24).frame(width: 480)
-            .onAppear { searchFocused = item.originalID == nil }
             .onChange(of: selected) { _ in
-                if let chosen { rule = chosen.rule; identity = rule.id; match = rule.bundleId.isEmpty ? "path" : "bundle"; rule.notify = item.rule.notify; rule.process = protected ? false : item.rule.process }
+                if let chosen {
+                    let notify = rule.notify, process = rule.process
+                    rule = chosen.rule; identity = rule.id; match = rule.bundleId.isEmpty ? "path" : "bundle"
+                    rule.notify = notify; rule.process = protected ? false : process
+                }
                 error = nil
             }
+            .onChange(of: model.catalogLoading) { loading in
+                if !loading, item.originalID != nil, chosen == nil { selected = "manual"; browserOpen = false }
+            }
+            .onChange(of: search) { _ in highlighted = nil }
+            .onChange(of: group) { _ in highlighted = nil }
             .onChange(of: identity) { _ in if protected { rule.process = false } }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: browserOpen)
+            .onExitCommand { if browserOpen { browserOpen = false } else { dismiss() } }
+    }
+    private func choose(_ app: CatalogApp) { selected = app.id; browserOpen = false }
+    private func selectHighlighted() {
+        if let app = filteredCatalog.first(where: { $0.id == highlighted }) ?? filteredCatalog.first { choose(app) }
+    }
+    private func navigate(_ direction: Int) {
+        let apps = filteredCatalog
+        guard !apps.isEmpty else { return }
+        if let index = apps.firstIndex(where: { $0.id == highlighted }) { highlighted = apps[(index + direction + apps.count) % apps.count].id }
+        else { highlighted = direction > 0 ? apps.first?.id : apps.last?.id }
     }
     private func save() {
         guard !selected.isEmpty else { error = "请先选择应用。"; return }

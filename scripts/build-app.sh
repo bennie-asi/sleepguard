@@ -11,7 +11,7 @@ cp "$project_dir/macos/io.sleepguard.agent.plist" "$app_dir/Contents/Library/Lau
 cp "$project_dir/macos/io.sleepguard.app.agent.plist" "$app_dir/Contents/Library/LaunchAgents/io.sleepguard.app.agent.plist"
 cp "$project_dir/macos/Info.plist" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $version" "$app_dir/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set CFBundleVersion ${BUILD_NUMBER:-5}" "$app_dir/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set CFBundleVersion ${BUILD_NUMBER:-8}" "$app_dir/Contents/Info.plist"
 cd "$project_dir"
 xcrun swiftc -swift-version 6 -parse-as-library -module-cache-path "$project_dir/work/swift-cache" -o "$project_dir/work/render-app-icon" scripts/render-app-icon.swift
 "$project_dir/work/render-app-icon" "$project_dir/work/SleepGuard.iconset"
