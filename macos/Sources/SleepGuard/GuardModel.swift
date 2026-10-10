@@ -171,9 +171,18 @@ import UserNotifications
         // Permission lookup must not hold the status refresh gate while waiting for macOS.
         if permissionTask == nil {
             permissionTask = Task { [weak self] in
-                let authorization = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+                let authorization = await Self.notificationAuthorization()
                 self?.permission = authorization
                 self?.permissionTask = nil
+            }
+        }
+    }
+    private nonisolated static func notificationAuthorization() async -> UNAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            // Older SDKs expose UNNotificationSettings as a non-Sendable object.
+            // Extract the scalar status in its callback before crossing actors.
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                continuation.resume(returning: settings.authorizationStatus)
             }
         }
     }

@@ -15,9 +15,9 @@ Run checks locally, then push an annotated version tag:
 
 ```sh
 make test check check-ui
-VERSION=0.3.1 make dmg
-git tag -a v0.3.1 -m 'SleepGuard 0.3.1'
-git push origin v0.3.1
+VERSION=0.3.2 make dmg
+git tag -a v0.3.2 -m 'SleepGuard 0.3.2'
+git push origin v0.3.2
 ```
 
 The tag workflow tests both architectures, builds installers, and publishes

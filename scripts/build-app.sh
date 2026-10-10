@@ -4,14 +4,14 @@ project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 app_dir="$project_dir/dist/SleepGuard.app"
 arch_name="${ARCH:-$(uname -m)}"
 [[ "$arch_name" == arm64 || "$arch_name" == x86_64 ]] || { echo 'ARCH must be arm64 or x86_64' >&2; exit 1; }
-version="${VERSION:-0.3.1}"
+version="${VERSION:-0.3.2}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'VERSION must be x.y.z' >&2; exit 1; }
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$project_dir/work/swift-cache" "$app_dir/Contents/Library/LaunchAgents"
 cp "$project_dir/macos/io.sleepguard.agent.plist" "$app_dir/Contents/Library/LaunchAgents/io.sleepguard.agent.plist"
 cp "$project_dir/macos/io.sleepguard.app.agent.plist" "$app_dir/Contents/Library/LaunchAgents/io.sleepguard.app.agent.plist"
 cp "$project_dir/macos/Info.plist" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $version" "$app_dir/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set CFBundleVersion ${BUILD_NUMBER:-9}" "$app_dir/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set CFBundleVersion ${BUILD_NUMBER:-10}" "$app_dir/Contents/Info.plist"
 cd "$project_dir"
 xcrun swiftc -swift-version 6 -parse-as-library -module-cache-path "$project_dir/work/swift-cache" -o "$project_dir/work/render-app-icon" scripts/render-app-icon.swift
 "$project_dir/work/render-app-icon" "$project_dir/work/SleepGuard.iconset"

@@ -110,7 +110,7 @@ make test check check-ui
 make dmg
 ```
 
-产物位于 `dist/`：`.app`、DMG 和 SHA-256 校验文件。可通过 `VERSION=0.3.1`、`ARCH=arm64` 或 `ARCH=x86_64` 指定版本与架构。完整原生运行验收建议在对应架构的 Mac 上进行。
+产物位于 `dist/`：`.app`、DMG 和 SHA-256 校验文件。可通过 `VERSION=0.3.2`、`ARCH=arm64` 或 `ARCH=x86_64` 指定版本与架构。完整原生运行验收建议在对应架构的 Mac 上进行。
 
 ### GitHub 一键构建
 
