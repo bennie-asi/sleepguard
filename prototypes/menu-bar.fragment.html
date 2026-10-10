@@ -1,0 +1,941 @@
+<div id="sleepguard-prototype" lang="zh-CN" aria-label="SleepGuard 菜单栏应用原型">
+  <style>
+    #sleepguard-prototype {
+      --sg-bg: light-dark(#f5f5f7, #1c1c1e);
+      --sg-panel: light-dark(#ffffff, #29292b);
+      --sg-chrome: light-dark(#ececee, #242426);
+      --sg-ink: light-dark(#232326, #f2f2f4);
+      --sg-muted: light-dark(#68686f, #a7a7af);
+      --sg-line: light-dark(#dedee3, #414146);
+      --sg-blue: light-dark(#0068d9, #66aaff);
+      --sg-on-blue: light-dark(#ffffff, #101c2a);
+      --sg-selected: light-dark(#e7effb, #22354e);
+      --sg-green: light-dark(#26784a, #7bd6a0);
+      --sg-orange: light-dark(#975b0e, #f3bf73);
+      --sg-orange-bg: light-dark(#fff5e6, #382c1d);
+      --sg-red: light-dark(#b82b35, #ff969d);
+      --sg-red-bg: light-dark(#fff0f1, #40262a);
+      --sg-shadow: light-dark(#1717291c, #00000050);
+      --sg-switch-knob: light-dark(#ffffff, #f1f1f3);
+      --sg-radius: 12px;
+      color-scheme: inherit;
+      font: 400 13px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--sg-ink);
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+    #sleepguard-prototype *, #sleepguard-prototype *::before, #sleepguard-prototype *::after { box-sizing: border-box; }
+    #sleepguard-prototype [hidden] { display: none !important; }
+    #sleepguard-prototype button, #sleepguard-prototype input, #sleepguard-prototype select { font: inherit; color: inherit; }
+    #sleepguard-prototype button { cursor: var(--cursor-interaction, pointer); }
+    #sleepguard-prototype button:disabled { opacity: .45; cursor: default; }
+    #sleepguard-prototype button, #sleepguard-prototype select, #sleepguard-prototype input { border: 1px solid var(--sg-line); border-radius: 6px; background: var(--sg-panel); }
+    #sleepguard-prototype button { padding: 6px 11px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+    #sleepguard-prototype button:hover:not(:disabled) { background: var(--sg-bg); }
+    #sleepguard-prototype button.primary { background: var(--sg-blue); border-color: var(--sg-blue); color: var(--sg-on-blue); }
+    #sleepguard-prototype button.primary:hover:not(:disabled) { filter: brightness(.96); }
+    #sleepguard-prototype button.quiet { background: transparent; border-color: transparent; }
+    #sleepguard-prototype button.danger { color: var(--sg-red); }
+    #sleepguard-prototype input, #sleepguard-prototype select { padding: 7px 9px; min-width: 0; }
+    #sleepguard-prototype input[type="checkbox"] { width: 30px; height: 17px; accent-color: var(--sg-blue); padding: 0; flex: 0 0 auto; }
+    #sleepguard-prototype input[role="switch"] { appearance: none; width: 30px; height: 18px; border: 0; border-radius: 20px; background: var(--sg-line); position: relative; cursor: var(--cursor-interaction, pointer); }
+    #sleepguard-prototype input[role="switch"]::before { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--sg-switch-knob); }
+    #sleepguard-prototype input[role="switch"]:checked { background: var(--sg-blue); }
+    #sleepguard-prototype input[role="switch"]:checked::before { transform: translateX(12px); }
+    #sleepguard-prototype input[role="switch"]:disabled { opacity: .45; cursor: default; }
+    #sleepguard-prototype .muted { color: var(--sg-muted); }
+    #sleepguard-prototype .small { font-size: 12px; }
+    #sleepguard-prototype .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; overflow-wrap: anywhere; }
+    #sleepguard-prototype .number { font-variant-numeric: tabular-nums; }
+    #sleepguard-prototype .row { display: flex; align-items: center; gap: 10px; }
+    #sleepguard-prototype .spread { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    #sleepguard-prototype .grow { flex: 1; min-width: 0; }
+    #sleepguard-prototype .icon { display: inline-flex; flex: 0 0 auto; }
+    #sleepguard-prototype .icon svg { width: 16px; height: 16px; }
+    #sleepguard-prototype .preview-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0 15px; }
+    #sleepguard-prototype .preview-bar strong { font-weight: 500; }
+    #sleepguard-prototype .preview-bar label { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    #sleepguard-prototype .preview-bar select { padding: 5px 8px; font-size: 12px; }
+    #sleepguard-prototype .prototype-badge { border: 1px solid var(--sg-line); color: var(--sg-muted); border-radius: 4px; padding: 2px 7px; font-size: 11px; }
+    #sleepguard-prototype .desktop { position: relative; background: var(--sg-bg); border: 1px solid var(--sg-line); border-radius: 14px; padding-bottom: 22px; }
+    #sleepguard-prototype .menubar { background: var(--sg-chrome); display: flex; align-items: center; gap: 14px; padding: 4px 16px; border-radius: 14px 14px 0 0; border-bottom: 1px solid var(--sg-line); min-height: 36px; }
+    #sleepguard-prototype .menubar strong { font-weight: 500; }
+    #sleepguard-prototype .menu-trigger { background: var(--sg-panel); padding: 3px 9px; margin-left: auto; }
+    #sleepguard-prototype .stage { padding: 22px 20px 0; display: grid; grid-template-columns: 304px minmax(0, 1fr); gap: 22px; align-items: start; }
+    #sleepguard-prototype .menu-column { min-width: 0; }
+    #sleepguard-prototype .surface-label { display: flex; align-items: center; justify-content: space-between; font-size: 11px; letter-spacing: .04em; color: var(--sg-muted); padding: 0 3px 9px; }
+    #sleepguard-prototype .popover { border-radius: var(--sg-radius); background: var(--sg-panel); border: 1px solid var(--sg-line); box-shadow: 0 8px 24px var(--sg-shadow); }
+    #sleepguard-prototype .popover[data-compact="true"] .mini-facts { display: none; }
+    #sleepguard-prototype .popover-header { padding: 16px 16px 12px; }
+    #sleepguard-prototype .brand-icon { border-radius: 9px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: var(--sg-selected); color: var(--sg-blue); }
+    #sleepguard-prototype .brand-icon svg { width: 19px; height: 19px; }
+    #sleepguard-prototype .brand-name { font-weight: 500; font-size: 15px; }
+    #sleepguard-prototype .status-dot { width: 6px; height: 6px; display: inline-block; border-radius: 50%; background: var(--sg-green); margin-right: 4px; vertical-align: middle; }
+    #sleepguard-prototype .headline { padding: 8px 16px 16px; }
+    #sleepguard-prototype .headline h2 { margin: 5px 0 4px; font-size: 18px; font-weight: 500; letter-spacing: -.03em; }
+    #sleepguard-prototype .headline p { margin: 0; font-size: 12px; color: var(--sg-muted); }
+    #sleepguard-prototype .headline .status-mark { display: inline-flex; align-items: center; gap: 6px; color: var(--sg-green); font-size: 12px; }
+    #sleepguard-prototype [data-state="blocked"] .status-mark, #sleepguard-prototype [data-state="paused"] .status-mark { color: var(--sg-orange); }
+    #sleepguard-prototype [data-state="offline"] .status-mark { color: var(--sg-muted); }
+    #sleepguard-prototype [data-state="blocked"] .status-dot { background: var(--sg-orange); }
+    #sleepguard-prototype [data-state="paused"] .status-dot, #sleepguard-prototype [data-state="offline"] .status-dot { background: var(--sg-muted); }
+    #sleepguard-prototype .mini-facts { display: grid; grid-template-columns: 1fr 1fr; margin: 0 16px 14px; gap: 12px; }
+    #sleepguard-prototype .mini-facts span { display: block; }
+    #sleepguard-prototype .mini-facts .value { margin-top: 3px; font-size: 15px; }
+    #sleepguard-prototype .section-line { border-top: 1px solid var(--sg-line); padding: 13px 16px; }
+    #sleepguard-prototype .app-icon { width: 30px; height: 30px; border-radius: 7px; background: var(--sg-chrome); color: var(--sg-ink); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+    #sleepguard-prototype .app-icon.music { color: var(--sg-red); background: light-dark(#fbe9eb, #40272b); }
+    #sleepguard-prototype .app-icon.windows { color: var(--sg-blue); background: var(--sg-selected); }
+    #sleepguard-prototype .app-icon.remote { color: var(--sg-orange); background: var(--sg-orange-bg); }
+    #sleepguard-prototype .app-name { font-weight: 500; }
+    #sleepguard-prototype .blocker-row { margin-top: 11px; }
+    #sleepguard-prototype .tag { font-size: 11px; display: inline-block; border-radius: 4px; color: var(--sg-muted); background: var(--sg-bg); padding: 2px 6px; white-space: nowrap; }
+    #sleepguard-prototype .tag.warn { color: var(--sg-orange); background: var(--sg-orange-bg); }
+    #sleepguard-prototype .pause-zone { position: relative; }
+    #sleepguard-prototype .wide-button { width: 100%; }
+    #sleepguard-prototype .pause-options { background: var(--sg-panel); border: 1px solid var(--sg-line); border-radius: 8px; margin: 8px 0 0; padding: 5px; }
+    #sleepguard-prototype .pause-options button { width: 100%; justify-content: space-between; border: 0; background: transparent; padding: 7px 9px; }
+    #sleepguard-prototype .pause-note { margin-top: 8px; font-size: 11px; color: var(--sg-muted); }
+    #sleepguard-prototype .menu-actions { padding: 5px; border-top: 1px solid var(--sg-line); }
+    #sleepguard-prototype .menu-actions button { display: flex; justify-content: flex-start; width: 100%; border: 0; border-radius: 5px; padding: 8px 10px; background: transparent; }
+    #sleepguard-prototype .menu-actions button:hover { background: var(--sg-selected); }
+    #sleepguard-prototype .shortcut { margin-left: auto; color: var(--sg-muted); font-size: 11px; }
+    #sleepguard-prototype .menu-foot { padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; color: var(--sg-muted); border-top: 1px solid var(--sg-line); font-size: 11px; }
+    #sleepguard-prototype .menu-foot button { padding: 1px 0; border: 0; background: transparent; color: var(--sg-blue); font-size: 11px; }
+    #sleepguard-prototype .window { min-width: 0; background: var(--sg-panel); border-radius: var(--sg-radius); border: 1px solid var(--sg-line); box-shadow: 0 10px 28px var(--sg-shadow); position: relative; }
+    #sleepguard-prototype .titlebar { padding: 14px 15px 12px; background: var(--sg-chrome); display: flex; gap: 9px; align-items: center; border-radius: var(--sg-radius) var(--sg-radius) 0 0; border-bottom: 1px solid var(--sg-line); }
+    #sleepguard-prototype .traffic { display: flex; gap: 7px; margin-right: 5px; }
+    #sleepguard-prototype .traffic span { width: 11px; height: 11px; border-radius: 50%; display: block; }
+    #sleepguard-prototype .traffic span:nth-child(1) { background: light-dark(#ed6a5e, #c05b52); }
+    #sleepguard-prototype .traffic span:nth-child(2) { background: light-dark(#f4bf50, #bd963f); }
+    #sleepguard-prototype .traffic span:nth-child(3) { background: light-dark(#62c554, #489c3e); }
+    #sleepguard-prototype .titlebar strong { font-weight: 500; }
+    #sleepguard-prototype .window-tabs { display: flex; padding: 10px 13px; gap: 5px; border-bottom: 1px solid var(--sg-line); flex-wrap: wrap; }
+    #sleepguard-prototype .window-tabs button { flex: 1; border: 0; background: transparent; padding: 7px 9px; }
+    #sleepguard-prototype .window-tabs button[aria-selected="true"] { color: var(--sg-blue); background: var(--sg-selected); }
+    #sleepguard-prototype .page { padding: 20px; min-height: 490px; animation: sg-page-in .18s ease-out; }
+    #sleepguard-prototype .page-heading { margin-bottom: 18px; }
+    #sleepguard-prototype h1 { margin: 0 0 5px; font-size: 20px; line-height: 1.35; font-weight: 500; letter-spacing: -.035em; }
+    #sleepguard-prototype h3 { font-size: 13px; font-weight: 500; margin: 0; }
+    #sleepguard-prototype p { margin: 0; }
+    #sleepguard-prototype .inset-group { border: 1px solid var(--sg-line); border-radius: 8px; overflow-wrap: anywhere; }
+    #sleepguard-prototype .setting-row { padding: 13px 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--sg-line); }
+    #sleepguard-prototype .setting-row:last-child { border-bottom: 0; }
+    #sleepguard-prototype .setting-row .muted { margin-top: 3px; }
+    #sleepguard-prototype .setting-row input[type="number"] { width: 70px; }
+    #sleepguard-prototype .rule-row { padding: 14px; border-bottom: 1px solid var(--sg-line); }
+    #sleepguard-prototype .rule-row:last-child { border-bottom: 0; }
+    #sleepguard-prototype .rule-row .rule-actions { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 7px; padding-left: 40px; }
+    #sleepguard-prototype .rule-row select { padding: 5px 7px; font-size: 12px; }
+    #sleepguard-prototype .action-choices { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+    #sleepguard-prototype .action-choices label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; }
+    #sleepguard-prototype .action-choices input[type="checkbox"] { width: 16px; height: 16px; }
+    #sleepguard-prototype .rule-summary { margin-top: 7px; padding-left: 40px; font-size: 11px; color: var(--sg-muted); }
+    #sleepguard-prototype .channel-row { padding: 14px; border-bottom: 1px solid var(--sg-line); }
+    #sleepguard-prototype .channel-row:last-child { border-bottom: 0; }
+    #sleepguard-prototype .channel-actions { padding-left: 40px; margin-top: 9px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    #sleepguard-prototype .channel-result { flex-basis: 100%; margin-top: 2px; font-size: 11px; color: var(--sg-muted); }
+    #sleepguard-prototype .channel-result.failed { color: var(--sg-red); }
+    #sleepguard-prototype .channel-result.sent { color: var(--sg-green); }
+    #sleepguard-prototype .delivery-results { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+    #sleepguard-prototype .tag.success { color: var(--sg-green); background: var(--sg-bg); }
+    #sleepguard-prototype .dialog .action-choices { margin-top: 8px; }
+    #sleepguard-prototype .identity-preview { padding: 10px 12px; border-radius: 6px; background: var(--sg-bg); margin-top: 12px; }
+    #sleepguard-prototype .form-help { margin-top: 6px; font-size: 11px; color: var(--sg-muted); }
+    #sleepguard-prototype .notice { background: var(--sg-bg); padding: 10px 12px; border-radius: 7px; font-size: 12px; margin-top: 14px; }
+    #sleepguard-prototype .notice.warn { background: var(--sg-orange-bg); color: var(--sg-orange); }
+    #sleepguard-prototype .footer-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
+    #sleepguard-prototype .footer-actions .buttons { display: flex; gap: 6px; }
+    #sleepguard-prototype .section-caption { margin: 17px 0 8px; color: var(--sg-muted); font-size: 12px; }
+    #sleepguard-prototype .detail-banner { background: var(--sg-orange-bg); padding: 15px; border-radius: 8px; margin-bottom: 16px; }
+    #sleepguard-prototype .detail-banner .banner-title { font-weight: 500; margin-bottom: 5px; }
+    #sleepguard-prototype .steps { display: flex; gap: 9px; flex-wrap: wrap; margin: 12px 0 2px; font-size: 11px; }
+    #sleepguard-prototype .steps span { display: inline-flex; align-items: center; gap: 4px; }
+    #sleepguard-prototype .steps b { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; background: var(--sg-panel); color: var(--sg-muted); border-radius: 50%; font-size: 10px; font-weight: 500; }
+    #sleepguard-prototype .steps span.done b { background: var(--sg-blue); color: var(--sg-on-blue); }
+    #sleepguard-prototype .diagnostic { margin-top: 15px; border-top: 1px solid var(--sg-line); padding-top: 12px; }
+    #sleepguard-prototype summary { cursor: var(--cursor-interaction, pointer); color: var(--sg-muted); font-size: 12px; padding: 8px; margin: -4px -8px; border-radius: 6px; }
+    #sleepguard-prototype summary:hover { background: var(--sg-selected); }
+    #sleepguard-prototype .diagnostic p { padding: 8px 0 0; }
+    #sleepguard-prototype .history-list { margin-top: 8px; }
+    #sleepguard-prototype .history-event { display: grid; grid-template-columns: 42px 18px minmax(0, 1fr); gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--sg-line); }
+    #sleepguard-prototype .history-event:last-child { border-bottom: 0; }
+    #sleepguard-prototype .history-event time { font-size: 11px; color: var(--sg-muted); padding-top: 2px; font-variant-numeric: tabular-nums; }
+    #sleepguard-prototype .event-dot { width: 8px; height: 8px; border-radius: 50%; margin: 7px 0 0 4px; background: var(--sg-line); }
+    #sleepguard-prototype .event-dot.sent { background: var(--sg-blue); }
+    #sleepguard-prototype .event-dot.failed { background: var(--sg-orange); }
+    #sleepguard-prototype .history-event h3 { margin-bottom: 3px; }
+    #sleepguard-prototype .history-event p { font-size: 12px; color: var(--sg-muted); }
+    #sleepguard-prototype .dialog-layer { position: absolute; inset: 0; background: light-dark(#e9e9eee8, #15151bdd); z-index: 2; padding: 38px 20px 20px; border-radius: var(--sg-radius); display: flex; align-items: flex-start; justify-content: center; }
+    #sleepguard-prototype .dialog { width: 100%; max-width: 420px; background: var(--sg-panel); border: 1px solid var(--sg-line); box-shadow: 0 12px 40px var(--sg-shadow); padding: 23px; border-radius: 12px; }
+    #sleepguard-prototype .dialog h2 { margin: 0 0 5px; font-size: 17px; font-weight: 500; }
+    #sleepguard-prototype .dialog label { display: block; margin: 14px 0 5px; font-size: 12px; }
+    #sleepguard-prototype .dialog input:not([type="checkbox"]), #sleepguard-prototype .dialog select { width: 100%; }
+    #sleepguard-prototype .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 19px; flex-wrap: wrap; }
+    #sleepguard-prototype .dialog-actions .danger { margin-right: auto; }
+    #sleepguard-prototype .form-error { color: var(--sg-red); margin-top: 12px; font-size: 12px; }
+    #sleepguard-prototype .toast { margin: 14px 0 0; background: var(--sg-selected); border: 1px solid var(--sg-line); color: var(--sg-blue); padding: 11px 14px; border-radius: 8px; }
+    #sleepguard-prototype .empty { text-align: center; padding: 25px 8px; color: var(--sg-muted); font-size: 12px; }
+    #sleepguard-prototype .empty .icon { margin-bottom: 10px; color: var(--sg-green); }
+    #sleepguard-prototype .empty .icon svg { width: 24px; height: 24px; }
+    #sleepguard-prototype .offline-box { padding: 20px 8px; }
+    #sleepguard-prototype .offline-box h3 { margin: 10px 0 6px; }
+    #sleepguard-prototype .offline-box button { margin-top: 16px; }
+    #sleepguard-prototype ::-webkit-scrollbar { display: none; }
+    #sleepguard-prototype * { scrollbar-width: none; }
+    #sleepguard-prototype button { transition: background .14s, color .14s, transform .1s; }
+    #sleepguard-prototype button:active:not(:disabled) { transform: translateY(1px); }
+    #sleepguard-prototype :is(button,input,select,summary):focus-visible { outline: 3px solid var(--sg-selected); outline-offset: 2px; }
+    #sleepguard-prototype .pause-zone > button .icon:first-child { color: var(--sg-orange); }
+    #sleepguard-prototype .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; border-top: 1px solid var(--sg-line); }
+    #sleepguard-prototype .quick-actions button { justify-content: flex-start; gap: 10px; padding: 10px; background: var(--sg-bg); border-color: transparent; }
+    #sleepguard-prototype .quick-actions button:hover { background: var(--sg-selected); }
+    #sleepguard-prototype .quick-actions button > span:last-child { text-align: left; }
+    #sleepguard-prototype .quick-actions small { display: block; font-size: 10px; font-weight: 400; color: var(--sg-muted); margin-top: 2px; }
+    #sleepguard-prototype .quick-actions .icon { color: var(--sg-blue); }
+    #sleepguard-prototype .preview-note { font-size: 12px; color: var(--sg-muted); margin: -4px 0 14px; }
+    #sleepguard-prototype .app-icon.lit { color: var(--sg-blue); background: var(--sg-selected); }
+    #sleepguard-prototype .button-line { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+    #sleepguard-prototype .manual-actions { background: var(--sg-bg); border-radius: 0 0 8px 8px; flex-wrap: wrap; }
+    #sleepguard-prototype .manual-actions .action-hint { flex: 1 1 100%; margin-bottom: 2px; }
+    #sleepguard-prototype .app-menu { position: relative; }
+    #sleepguard-prototype .app-menu > summary { display: flex; padding: 6px; list-style: none; }
+    #sleepguard-prototype .app-menu > summary::-webkit-details-marker { display: none; }
+    #sleepguard-prototype .app-menu-content { position: absolute; right: 0; top: 30px; z-index: 2; width: 150px; border: 1px solid var(--sg-line); border-radius: 8px; padding: 5px; background: var(--sg-panel); box-shadow: 0 8px 20px var(--sg-shadow); }
+    #sleepguard-prototype .app-menu-content button { width: 100%; border: 0; justify-content: flex-start; background: transparent; }
+    #sleepguard-prototype .app-menu-content button:hover { background: var(--sg-selected); }
+    #sleepguard-prototype .confirm-app { margin: 16px 0 12px; padding: 12px; border: 1px solid var(--sg-line); border-radius: 8px; }
+    #sleepguard-prototype .confirm-app .mono { margin-top: 2px; }
+    #sleepguard-prototype .dialog .danger-primary { background: var(--sg-red); color: var(--sg-panel); border-color: var(--sg-red); }
+    #sleepguard-prototype .dialog .danger-primary:hover { filter: brightness(.95); }
+    #sleepguard-prototype .dialog-layer { align-items: center; padding-top: 20px; }
+    #sleepguard-prototype .spinner { display: inline-block; width: 14px; height: 14px; border: 1.5px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: sg-spin .75s linear infinite; }
+    #sleepguard-prototype .screen-preview { position: absolute; inset: 0; z-index: 5; border-radius: 14px; background: #000; color: #ddd; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: default; }
+    #sleepguard-prototype .black-screen-hint { text-align: center; animation: sg-black-hint 3s ease-out forwards; pointer-events: none; }
+    #sleepguard-prototype .black-screen-hint .icon svg { width: 32px; height: 32px; margin-bottom: 12px; }
+    #sleepguard-prototype .black-screen-hint p { margin-top: 4px; color: #969696; }
+    #sleepguard-prototype .black-screen-restore { position: absolute; bottom: 28px; left: 0; right: 0; text-align: center; font-size: 12px; color: #555; }
+    #sleepguard-prototype .lock-preview { position: absolute; inset: 0; background: radial-gradient(ellipse at 20% 10%, #6596af 0%, #284259 46%, #162637 100%); display: flex; align-items: center; justify-content: center; flex-direction: column; color: #fff; }
+    #sleepguard-prototype .lock-clock { font-size: 74px; font-weight: 500; line-height: 1.1; letter-spacing: -4px; }
+    #sleepguard-prototype .lock-date { font-size: 16px; margin-top: 12px; opacity: .8; }
+    #sleepguard-prototype .lock-avatar { display: flex; justify-content: center; align-items: center; width: 60px; height: 60px; border-radius: 50%; background: #ffffff20; margin: 48px 0 12px; }
+    #sleepguard-prototype .lock-avatar svg { width: 25px; height: 25px; }
+    #sleepguard-prototype .lock-preview p { color: #ffffffb8; margin-top: 8px; }
+    #sleepguard-prototype .lock-preview button { color: #fff; border-color: #ffffff44; background: #ffffff15; margin-top: 22px; }
+    #sleepguard-prototype .lock-preview button:hover { background: #ffffff25; }
+    #sleepguard-prototype .app-closed { padding: 38px 22px; text-align: center; background: var(--sg-panel); border: 1px solid var(--sg-line); border-radius: 12px; }
+    #sleepguard-prototype .app-closed .brand-icon { margin: 0 auto 16px; }
+    #sleepguard-prototype .app-closed button { margin-top: 18px; }
+    #sleepguard-prototype .display-strip { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; padding: 15px; }
+    #sleepguard-prototype .display-tile { min-width: 0; text-align: center; font-size: 10px; color: var(--sg-muted); }
+    #sleepguard-prototype .display-face { height: 45px; border: 3px solid var(--sg-line); border-radius: 5px; background: linear-gradient(140deg, var(--sg-selected), var(--sg-chrome)); margin-bottom: 6px; position: relative; }
+    #sleepguard-prototype .display-face::after { content: ''; width: 22px; height: 3px; background: var(--sg-line); position: absolute; bottom: -6px; left: calc(50% - 11px); border-radius: 2px; }
+    #sleepguard-prototype .screen-preview .display-strip { width: min(360px, 90vw); margin: 14px auto 0; }
+    #sleepguard-prototype .screen-preview .display-face { background: #000; border-color: #262626; height: 60px; }
+    #sleepguard-prototype .screen-preview .display-face::after { background: #262626; }
+    #sleepguard-prototype .screen-preview .display-tile { color: #666; }
+    #sleepguard-prototype .shortcut-controls { display: flex; gap: 5px; align-items: center; flex: 0 0 auto; }
+    #sleepguard-prototype .shortcut-recorder { min-width: 112px; font-variant-numeric: tabular-nums; letter-spacing: .06em; }
+    #sleepguard-prototype .shortcut-recorder[data-recording="true"] { border-color: var(--sg-blue); color: var(--sg-blue); background: var(--sg-selected); }
+    #sleepguard-prototype .shortcut-recorder[data-invalid="true"] { border-color: var(--sg-red); color: var(--sg-red); }
+    #sleepguard-prototype .shortcut-clear { padding: 5px; }
+    #sleepguard-prototype .shortcut-error { padding: 0 14px 11px; color: var(--sg-red); font-size: 11px; }
+    #sleepguard-prototype .app-choice-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; }
+    #sleepguard-prototype .dialog .app-choice-head label { margin: 0; }
+    #sleepguard-prototype .app-choice-head button { padding: 4px 6px; font-size: 11px; color: var(--sg-blue); }
+    #sleepguard-prototype .app-picker-trigger { margin-top: 6px; width: 100%; justify-content: space-between; padding: 10px 12px; text-align: left; }
+    #sleepguard-prototype .app-picker-trigger > span:first-child { white-space: normal; }
+    #sleepguard-prototype .app-browser { border: 1px solid var(--sg-line); border-radius: 8px; margin-top: 8px; overflow: hidden; background: var(--sg-panel); }
+    #sleepguard-prototype .app-browser-tools { padding: 10px; border-bottom: 1px solid var(--sg-line); }
+    #sleepguard-prototype .app-search-box { display: flex; align-items: center; gap: 6px; padding: 0 8px; background: var(--sg-bg); border: 1px solid var(--sg-line); border-radius: 6px; }
+    #sleepguard-prototype .app-search-box .icon { color: var(--sg-muted); }
+    #sleepguard-prototype .dialog .app-search-box input { border: 0; background: transparent; padding: 7px 0; outline-offset: 0; }
+    #sleepguard-prototype .app-filters { display: flex; gap: 4px; margin-top: 9px; }
+    #sleepguard-prototype .app-filters button { flex: 1; border: 0; padding: 5px 3px; font-size: 11px; background: transparent; }
+    #sleepguard-prototype .app-filters button[aria-pressed="true"] { background: var(--sg-selected); color: var(--sg-blue); }
+    #sleepguard-prototype .app-results { max-height: 220px; overflow-y: auto; overscroll-behavior: contain; padding: 5px; }
+    #sleepguard-prototype .app-results h3 { padding: 5px 9px; color: var(--sg-muted); font-size: 10px; }
+    #sleepguard-prototype .app-results button { width: 100%; border: 0; justify-content: flex-start; text-align: left; padding: 8px; background: transparent; }
+    #sleepguard-prototype .app-results button[aria-pressed="true"] { background: var(--sg-selected); color: var(--sg-blue); }
+    #sleepguard-prototype .app-results .grow { white-space: normal; }
+    #sleepguard-prototype .app-results .small { font-size: 10px; }
+    #sleepguard-prototype .app-results .empty { padding: 16px 7px; }
+    @keyframes sg-spin { to { transform: rotate(360deg); } }
+    @keyframes sg-page-in { from { opacity: .4; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+    @keyframes sg-black-hint { 0%,35% { opacity: .85; } 100% { opacity: 0; } }
+    @media(prefers-reduced-motion: reduce) {
+      #sleepguard-prototype *, #sleepguard-prototype *::before, #sleepguard-prototype *::after { transition: none !important; animation: none !important; }
+      #sleepguard-prototype .black-screen-hint { opacity: .15; }
+    }
+    @media(max-width: 800px) {
+      #sleepguard-prototype .stage { grid-template-columns: 1fr; gap: 20px; }
+      #sleepguard-prototype .menu-column { max-width: 380px; width: 100%; justify-self: center; }
+      #sleepguard-prototype .window { width: 100%; }
+      #sleepguard-prototype .page { min-height: 0; }
+      #sleepguard-prototype .desktop { padding-bottom: 18px; }
+    }
+    @media(max-width: 420px) {
+      #sleepguard-prototype .stage { padding: 15px 10px 0; }
+      #sleepguard-prototype .page { padding: 16px 13px; }
+      #sleepguard-prototype .preview-bar label { margin-left: 0; }
+      #sleepguard-prototype .menu-clock, #sleepguard-prototype .surface-label .label-note { display: none; }
+      #sleepguard-prototype .window-tabs { padding: 8px; gap: 2px; }
+      #sleepguard-prototype .window-tabs button { padding: 7px 5px; font-size: 12px; }
+      #sleepguard-prototype .window-tabs button { flex-direction: column; gap: 3px; }
+      #sleepguard-prototype .rule-row { padding: 12px 10px; }
+      #sleepguard-prototype .rule-row .rule-actions { padding-left: 0; }
+      #sleepguard-prototype .rule-summary, #sleepguard-prototype .channel-actions { padding-left: 0; }
+      #sleepguard-prototype .channel-row { padding: 12px 10px; }
+      #sleepguard-prototype .setting-row { padding: 12px 10px; }
+      #sleepguard-prototype .footer-actions { flex-wrap: wrap; }
+      #sleepguard-prototype .dialog-layer { padding: 35px 10px 15px; }
+      #sleepguard-prototype .dialog { padding: 18px; }
+      #sleepguard-prototype input:not([type="checkbox"]), #sleepguard-prototype select { font-size: 16px; }
+    }
+    @media(pointer: coarse) {
+      #sleepguard-prototype button { min-height: 44px; }
+      #sleepguard-prototype .pause-options button { min-height: 44px; }
+    }
+  </style>
+
+  <div class="preview-bar">
+    <strong>SleepGuard</strong><span class="prototype-badge">新功能原型 · 示例数据</span>
+    <label for="sg-scenario"><span class="small muted">预览状态</span><select id="sg-scenario"><option value="blocked">休眠异常</option><option value="shortcut-conflict">快捷键与系统冲突</option><option value="shortcut-unavailable">快捷键已被其他应用占用</option><option value="quit-unresponsive">应用退出无响应</option><option value="protected">受保护进程</option><option value="channel-failure">电报发送失败</option><option value="healthy">正常监控</option><option value="offline">后台离线</option></select></label>
+  </div>
+  <p class="preview-note">本轮：所有屏幕黑屏、快捷键、搜索应用。所有操作仅演示。</p>
+  <div class="desktop">
+    <div class="menubar" aria-label="macOS 菜单栏示意">
+      <strong>SleepGuard</strong><span class="muted small">菜单栏应用</span>
+      <button type="button" id="sg-menu-trigger" class="menu-trigger" aria-expanded="true" aria-controls="sg-popover" aria-label="显示或收起 SleepGuard 菜单"><span class="icon"><i data-lucide="moon-star" aria-hidden="true"></i></span><span class="status-dot"></span></button>
+      <span class="menu-clock small number">10:10</span>
+    </div>
+    <div class="stage">
+      <section class="menu-column" aria-label="菜单栏面板">
+        <div class="surface-label"><span>菜单栏面板</span><span class="label-note">点击图标即可查看</span></div>
+        <div id="sg-popover" class="popover" data-state="blocked">
+          <div class="popover-header spread"><div class="row"><div class="brand-icon icon"><i data-lucide="moon-star" aria-hidden="true"></i></div><div><div class="brand-name">SleepGuard</div><div class="small muted"><span class="status-dot"></span><span id="sg-service-state">后台运行中</span></div></div></div><button type="button" class="quiet" data-go="general" aria-label="打开设置"><span class="icon"><i data-lucide="settings-2" aria-hidden="true"></i></span></button></div>
+          <div class="headline" aria-live="polite"><div class="status-mark"><span class="icon"><i data-lucide="activity" aria-hidden="true"></i></span><span id="sg-status-label">发现持续阻塞</span></div><h2 id="sg-status-title">1 个应用阻止休眠</h2><p id="sg-status-description">已超过预期空闲时间，继续提醒。</p></div>
+          <div class="mini-facts"><div><span class="small muted">用户空闲</span><span id="sg-idle" class="value number">32 分钟</span></div><div><span class="small muted">当前电源</span><span class="value">外接电源</span></div></div>
+          <div id="sg-menu-blockers" class="section-line"><div class="spread"><span class="small muted">需要关注的应用</span><span class="tag">1 个</span></div><div class="row blocker-row"><div class="app-icon music icon"><i data-lucide="music-2" aria-hidden="true"></i></div><div class="grow"><div class="app-name" id="sg-menu-app-name">网易云音乐</div><div class="small muted" id="sg-menu-progress">已成功提醒 2 次</div></div><details class="app-menu" id="sg-app-menu"><summary aria-label="异常应用操作"><span class="icon"><i data-lucide="ellipsis" aria-hidden="true"></i></span></summary><div class="app-menu-content"><button type="button" data-manual="quit">结束应用…</button><button type="button" data-manual="force" class="danger">强制结束…</button><button type="button" class="quiet" data-go="status">查看详情</button></div></details></div></div>
+          <div id="sg-menu-healthy" class="section-line" hidden><div class="row small muted"><span class="icon"><i data-lucide="check" aria-hidden="true"></i></span>暂无需要告警的应用</div></div>
+          <div class="section-line pause-zone"><button type="button" id="sg-pause-toggle" class="wide-button" aria-expanded="false" aria-controls="sg-pause-options"><span class="icon"><i data-lucide="pause" aria-hidden="true"></i></span><span id="sg-pause-label">暂停提醒与处理…</span><span class="icon"><i data-lucide="chevron-down" aria-hidden="true"></i></span></button><div id="sg-pause-options" class="pause-options" hidden><button type="button" data-pause="30">30 分钟<span class="muted small">短暂休息</span></button><button type="button" data-pause="60">1 小时<span class="muted small">推荐</span></button><button type="button" data-pause="120">2 小时<span class="muted small">稍后恢复</span></button></div><div id="sg-pause-note" class="pause-note">暂停期间继续采样，不发送提醒或结束应用。</div></div>
+          <div class="quick-actions"><button type="button" data-screen="black" aria-label="一键黑屏"><span class="icon"><i data-lucide="monitor-off" aria-hidden="true"></i></span><span>黑屏<small>所有屏幕 · 不锁屏</small></span></button><button type="button" data-screen="lock" aria-label="一键锁屏"><span class="icon"><i data-lucide="lock-keyhole" aria-hidden="true"></i></span><span>锁屏<small>立即锁定桌面</small></span></button></div>
+          <div class="menu-actions"><button type="button" data-go="status"><span class="icon"><i data-lucide="activity" aria-hidden="true"></i></span>查看完整状态<span class="shortcut">↗</span></button><button type="button" data-go="rules"><span class="icon"><i data-lucide="sliders-horizontal" aria-hidden="true"></i></span>应用规则<span class="shortcut">↗</span></button><button type="button" data-go="notifications"><span class="icon sg-notification-icon"><i data-lucide="bell" aria-hidden="true"></i></span>通知渠道<span class="shortcut">↗</span></button><button type="button" data-go="history"><span class="icon"><i data-lucide="history" aria-hidden="true"></i></span>事件历史<span class="shortcut">↗</span></button></div>
+          <div class="menu-foot"><span id="sg-last-sample">每 60 秒检查 · 刚刚更新</span><span class="row"><button type="button" id="sg-refresh">刷新</button><button type="button" id="sg-quit-app">退出</button></span></div>
+        </div>
+      </section>
+
+      <section aria-label="SleepGuard 管理窗口">
+        <div class="surface-label"><span>管理窗口</span><span class="label-note">关闭窗口后继续后台监控</span></div>
+        <div class="window" id="sg-window">
+          <div class="titlebar"><div class="traffic" aria-hidden="true"><span></span><span></span><span></span></div><strong>SleepGuard</strong><span class="grow"></span><span class="small muted">设置与活动</span></div>
+          <div class="window-tabs" role="tablist" aria-label="管理页面"><button type="button" id="sg-tab-status" role="tab" aria-selected="false" aria-controls="sg-page-status" data-tab="status"><span class="icon"><i data-lucide="activity" aria-hidden="true"></i></span>状态</button><button type="button" id="sg-tab-rules" role="tab" aria-selected="false" aria-controls="sg-page-rules" data-tab="rules"><span class="icon"><i data-lucide="sliders-horizontal" aria-hidden="true"></i></span>规则</button><button type="button" id="sg-tab-notifications" role="tab" aria-selected="true" aria-controls="sg-page-notifications" data-tab="notifications"><span class="icon"><i data-lucide="bell" aria-hidden="true"></i></span>通知</button><button type="button" id="sg-tab-history" role="tab" aria-selected="false" aria-controls="sg-page-history" data-tab="history"><span class="icon"><i data-lucide="history" aria-hidden="true"></i></span>历史</button><button type="button" id="sg-tab-general" role="tab" aria-selected="false" aria-controls="sg-page-general" data-tab="general"><span class="icon"><i data-lucide="settings-2" aria-hidden="true"></i></span>设置</button></div>
+
+          <div class="page" id="sg-page-status" role="tabpanel" aria-labelledby="sg-tab-status" hidden>
+            <div class="page-heading spread"><div><h1>当前状态</h1><p class="small muted" id="sg-status-subtitle">每 60 秒采样，最近一次检查：刚刚</p></div><button type="button" id="sg-detail-refresh" class="quiet" aria-label="刷新完整状态"><span class="icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span></button></div>
+            <div id="sg-state-banner" class="detail-banner"><div class="banner-title" id="sg-banner-title">超过预期空闲时间</div><p class="small" id="sg-banner-description">空闲 32 分钟，超过 15 分钟门槛；显示器已熄灭。</p><div class="steps" id="sg-steps"><span class="done"><b>✓</b>连续检测 3 次</span><span class="done"><b>2</b>已提醒 2 次</span><span><b>3</b>下一次提醒</span></div></div>
+            <div id="sg-status-blocker" class="inset-group"><div class="setting-row"><div class="row"><div class="app-icon music icon"><i data-lucide="music-2" aria-hidden="true"></i></div><div><h3 id="sg-detail-app-name">网易云音乐</h3><div class="small muted" id="sg-detail-app-pid">PID 2486 · 音频服务代持</div></div></div><span id="sg-active-policy" class="tag">仅通知</span></div><div class="setting-row"><div><p class="small muted">阻止空闲系统休眠</p><p class="mono">PreventUserIdleSystemSleep</p></div></div><div class="setting-row"><div><p class="small muted">系统报告的请求名称</p><p class="small" id="sg-detail-assertion">NetEase CloudMusic is playing music</p><p class="small muted">此名称不代表当前一定在播放。</p></div></div><div class="setting-row"><span class="small muted" id="sg-blocker-next">下次提醒约 8 分钟后</span><button type="button" data-go="rules" class="quiet">调整规则</button></div><div class="setting-row manual-actions"><p class="small muted action-hint" id="sg-manual-hint">手动操作立即执行，不受自动结束开关影响。</p><span class="small muted" id="sg-manual-state" role="status">应用正在运行</span><div class="button-line"><button type="button" data-manual="quit"><span class="icon"><i data-lucide="circle-x" aria-hidden="true"></i></span>结束应用…</button><button type="button" data-manual="force" class="danger">强制结束…</button></div></div></div>
+            <div id="sg-status-clear" class="empty" hidden><span class="icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><p>暂无需要告警的应用</p><p class="small muted">当前处于唤醒后的宽限期。</p></div>
+            <div id="sg-status-offline" class="offline-box" hidden><h3>后台服务未运行</h3><p class="small muted">无法判断持续阻塞或执行规则。启动后恢复检查。</p><button type="button" class="primary" id="sg-start-service">启动后台服务</button></div>
+            <p class="section-caption">电源与休眠配置</p><div class="inset-group"><div class="setting-row"><span>自动系统休眠</span><span class="number muted">1 分钟</span></div><div class="setting-row"><span>自动熄屏</span><span class="number muted">10 分钟</span></div><div class="setting-row"><span>额外等待时间</span><span class="number muted" id="sg-power-grace">5 分钟</span></div></div>
+            <details class="diagnostic"><summary>系统与外设请求 · 仅供诊断</summary><p class="mono">powerd · 显示器亮起时阻止系统休眠<br>USB · Hub、外部存储设备、鼠标<br>MAGICWAKE · en0 网络唤醒</p><p class="small muted">这些条目不参与应用自动结束规则。</p></details>
+          </div>
+
+          <div class="page" id="sg-page-rules" role="tabpanel" aria-labelledby="sg-tab-rules" hidden>
+            <div class="page-heading spread"><div><h1>应用规则</h1><p class="small muted">为每个应用选择持续阻塞时的处理方式。</p></div><button type="button" id="sg-add-rule" aria-label="添加应用规则"><span class="icon"><i data-lucide="plus" aria-hidden="true"></i></span>添加</button></div>
+            <div class="inset-group"><label class="setting-row" for="sg-auto-actions"><div><h3>允许自动结束应用</h3><p class="small muted" id="sg-auto-hint">对勾选“处理”的应用生效，默认关闭。</p></div><input id="sg-auto-actions" type="checkbox" role="switch" aria-label="允许自动结束应用"></label></div>
+            <p class="section-caption">已配置的应用</p><div class="inset-group" id="sg-rules-list"></div>
+            <div class="notice" id="sg-rules-note">“通知”和“处理”可分别勾选，都不勾选即忽略。未配置的应用默认仅通知。</div>
+            <div id="sg-terminate-note" class="notice warn" hidden></div>
+            <div class="footer-actions"><span id="sg-rules-save-state" class="small muted" aria-live="polite">没有未保存的更改</span><div class="buttons"><button type="button" id="sg-discard" disabled>撤销</button><button type="button" id="sg-save-rules" class="primary" disabled>保存并应用</button></div></div>
+          </div>
+
+          <div class="page" id="sg-page-notifications" role="tabpanel" aria-labelledby="sg-tab-notifications">
+            <div class="page-heading spread"><div><h1>通知渠道</h1><p class="small muted" id="sg-enabled-channel-count">已启用 2 个渠道</p></div><button type="button" id="sg-add-channel" aria-label="添加通知渠道"><span class="icon"><i data-lucide="plus" aria-hidden="true"></i></span>添加</button></div>
+            <div class="inset-group"><div class="channel-row"><div class="spread"><div class="row grow"><div class="app-icon icon"><i data-lucide="bell-ring" aria-hidden="true"></i></div><div class="grow"><h3>系统通知</h3><p class="small muted">macOS 通知中心 · 权限已允许</p></div></div><input type="checkbox" id="sg-system-notifications" checked role="switch" aria-label="系统通知开关"></div><div class="channel-actions"><span class="tag" id="sg-system-status">已启用</span><button type="button" class="quiet" id="sg-test-system">测试通知</button><p class="channel-result" id="sg-system-result" aria-live="polite">使用系统通知，无需配置账号。</p></div></div></div>
+            <p class="section-caption">其他通知渠道</p><div class="inset-group" id="sg-channels-list"></div>
+            <p class="small muted" style="margin-top:12px" id="sg-channel-summary">各渠道独立发送。</p>
+            <p class="small muted" style="margin-top:6px" id="sg-channel-save-state" aria-live="polite">开关立即应用。</p>
+          </div>
+
+          <div class="page" id="sg-page-history" role="tabpanel" aria-labelledby="sg-tab-history" hidden>
+            <div class="page-heading"><h1>事件历史</h1><p class="small muted">记录发现、提醒和处理结果，默认保留 30 天。</p></div>
+            <p class="section-caption">今天 · 示例记录</p><div class="history-list" id="sg-history-list"></div>
+            <details class="diagnostic"><summary>查看事件与运行日志的位置</summary><p class="mono">~/Library/Application Support/sleepguard/state.db<br>~/Library/Application Support/sleepguard/agent.log</p><p class="small muted">事件历史记录状态变化；运行日志包含每次采样的判断。</p></details>
+          </div>
+
+          <div class="page" id="sg-page-general" role="tabpanel" aria-labelledby="sg-tab-general" hidden>
+            <div class="page-heading"><h1>设置</h1><p class="small muted">快捷操作与后台监控。</p></div>
+            <p class="section-caption" style="margin-top:0">快捷操作</p><div class="inset-group"><div class="setting-row"><div><h3>黑屏 <span class="tag">所有显示器</span></h3><p class="small muted">不锁屏；任意按键或点击恢复全部屏幕。</p></div><button type="button" data-screen="black">立即黑屏</button></div><div class="display-strip" aria-label="显示器范围示意"><div class="display-tile"><div class="display-face"></div><span>内置显示器</span></div><div class="display-tile"><div class="display-face"></div><span>外接显示器 1</span></div><div class="display-tile"><div class="display-face"></div><span>外接显示器 2</span></div></div><div class="setting-row" style="border-top:1px solid var(--sg-line)"><div><h3>锁屏</h3><p class="small muted">立即锁定桌面。</p></div><button type="button" data-screen="lock">立即锁屏</button></div></div><p class="form-help">黑屏为纯黑遮罩，屏幕本身不断电。</p>
+            <p class="section-caption">快捷键</p><div class="inset-group" id="sg-shortcuts"><div class="shortcut-item"><div class="setting-row"><span class="row"><span class="icon"><i data-lucide="monitor-off" aria-hidden="true"></i></span>所有屏幕黑屏</span><span class="shortcut-controls"><button type="button" class="shortcut-recorder" data-shortcut="black" aria-label="设置黑屏快捷键">未设置</button><button type="button" class="quiet shortcut-clear" data-clear-shortcut="black" aria-label="清除黑屏快捷键" hidden><span class="icon"><i data-lucide="circle-x" aria-hidden="true"></i></span></button></span></div><p class="shortcut-error" data-shortcut-error="black" role="alert" hidden></p></div><div class="shortcut-item"><div class="setting-row"><span class="row"><span class="icon"><i data-lucide="lock-keyhole" aria-hidden="true"></i></span>锁屏</span><span class="shortcut-controls"><button type="button" class="shortcut-recorder" data-shortcut="lock" aria-label="设置锁屏快捷键">未设置</button><button type="button" class="quiet shortcut-clear" data-clear-shortcut="lock" aria-label="清除锁屏快捷键" hidden><span class="icon"><i data-lucide="circle-x" aria-hidden="true"></i></span></button></span></div><p class="shortcut-error" data-shortcut-error="lock" role="alert" hidden></p></div><div class="shortcut-item"><div class="setting-row"><span class="row"><span class="icon"><i data-lucide="moon-star" aria-hidden="true"></i></span>打开 SleepGuard</span><span class="shortcut-controls"><button type="button" class="shortcut-recorder" data-shortcut="open" aria-label="设置打开应用快捷键">未设置</button><button type="button" class="quiet shortcut-clear" data-clear-shortcut="open" aria-label="清除打开应用快捷键" hidden><span class="icon"><i data-lucide="circle-x" aria-hidden="true"></i></span></button></span></div><p class="shortcut-error" data-shortcut-error="open" role="alert" hidden></p></div></div><p class="form-help" id="sg-shortcut-help">点击录入组合键，Esc 取消。常用系统快捷键和重复组合不可用。</p>
+            <p class="section-caption">监控</p>
+            <div class="inset-group"><div class="setting-row"><div><h3>后台服务</h3><p id="sg-settings-service" class="small muted">正在运行 · 登录后自动启动</p></div><span id="sg-service-tag" class="tag">运行中</span></div><div class="setting-row"><label for="sg-interval">检查间隔</label><select id="sg-interval"><option value="30">30 秒</option><option value="60" selected>60 秒</option><option value="120">2 分钟</option></select></div><div class="setting-row"><label for="sg-grace">额外等待时间</label><span class="row"><input id="sg-grace" type="number" min="1" max="60" value="5" aria-label="额外等待时间，分钟"><span class="muted small">分钟</span></span></div></div>
+            <details class="diagnostic"><summary>通知与处理的高级选项</summary><div class="inset-group" style="margin-top:10px"><div class="setting-row"><span>连续异常采样</span><span class="muted">3 次</span></div><div class="setting-row"><span>通知间隔</span><span class="muted">10 分钟</span></div><div class="setting-row"><span>处理等待 / 退出前等待</span><span class="muted">30 分钟 / 10 分钟</span></div><label class="setting-row" for="sg-force"><div><h3>允许强制结束</h3><p class="small muted">请求退出 15 秒后仍阻塞，再次检查后强制结束。</p></div><input type="checkbox" id="sg-force" role="switch" aria-label="允许强制结束"></label></div><p class="form-help">处理按等待时间执行，通知发送结果不改变处理倒计时。</p></details>
+            <div class="footer-actions"><span class="small muted" id="sg-settings-save-state" aria-live="polite">保存后自动加载配置</span><button type="button" id="sg-save-settings" class="primary">保存并应用</button></div>
+          </div>
+
+          <div class="dialog-layer" id="sg-rule-dialog" hidden>
+            <form class="dialog" id="sg-rule-form" role="dialog" aria-modal="true" aria-labelledby="sg-rule-dialog-title">
+              <h2 id="sg-rule-dialog-title">添加应用规则</h2><p class="small muted">从应用列表选择，或手动填写匹配标识。</p>
+              <div class="app-choice-head"><label id="sg-app-picker-label">选择应用</label><button type="button" class="quiet" id="sg-manual-choice">手动填写</button></div><button type="button" class="app-picker-trigger" id="sg-app-picker" aria-labelledby="sg-app-picker-label sg-app-picker-name" aria-expanded="false" aria-controls="sg-app-browser"><span id="sg-app-picker-name" class="muted">搜索或选择应用…</span><span class="icon"><i data-lucide="chevron-down" aria-hidden="true"></i></span></button>
+              <div class="app-browser" id="sg-app-browser"><div class="app-browser-tools"><div class="app-search-box"><span class="icon"><i data-lucide="search" aria-hidden="true"></i></span><input id="sg-app-search" type="search" aria-label="搜索应用" placeholder="搜索名称、Bundle ID 或路径" autocomplete="off" spellcheck="false"></div><div class="app-filters" role="group" aria-label="按运行状态筛选"><button type="button" data-app-filter="全部" aria-pressed="true">全部</button><button type="button" data-app-filter="已启动" aria-pressed="false">已启动</button><button type="button" data-app-filter="后台任务" aria-pressed="false">后台任务</button><button type="button" data-app-filter="未启动" aria-pressed="false">未启动</button></div></div><div class="app-results" id="sg-app-results" role="group" aria-label="应用搜索结果"></div></div><p class="form-help" id="sg-app-help">列表可滚动，搜索与分类固定在顶部。</p>
+              <div class="identity-preview" id="sg-app-details" hidden><h3 id="sg-app-name"></h3><p class="mono" id="sg-app-identity"></p></div>
+              <div id="sg-manual-app"><label for="sg-rule-name">显示名称</label><input id="sg-rule-name" placeholder="例如：网易云音乐" maxlength="60"><label for="sg-rule-match">匹配方式</label><select id="sg-rule-match"><option value="bundle">Bundle ID</option><option value="path">可执行文件路径</option></select><label for="sg-rule-identity" id="sg-identity-label">Bundle ID</label><input id="sg-rule-identity" placeholder="com.example.app" spellcheck="false"></div>
+              <p class="section-caption">处理方式 · 可多选</p><div class="action-choices"><label><input type="checkbox" id="sg-rule-notify" checked>通知</label><label><input type="checkbox" id="sg-rule-process">处理</label></div><p class="form-help" id="sg-rule-action-help">仅通知；都不勾选即忽略。</p>
+              <p id="sg-rule-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" id="sg-rule-delete" class="quiet danger" hidden>删除规则</button><button type="button" id="sg-rule-cancel">取消</button><button type="button" class="primary" id="sg-rule-submit">添加规则</button></div>
+            </form>
+          </div>
+          <div class="dialog-layer" id="sg-channel-dialog" hidden>
+            <form class="dialog" id="sg-channel-form" role="dialog" aria-modal="true" aria-labelledby="sg-channel-title">
+              <h2 id="sg-channel-title">添加通知渠道</h2><p class="small muted">每个渠道独立保存配置，可添加多个同类型渠道。</p>
+              <label for="sg-channel-provider">渠道类型</label><select id="sg-channel-provider"><option value="telegram">Telegram · 电报</option><option value="webhook">Webhook · 待接入</option><option value="feishu">飞书 · 待接入</option><option value="slack">Slack · 待接入</option><option value="email">邮件 · 待接入</option></select>
+              <label for="sg-channel-name">渠道名称</label><input id="sg-channel-name" placeholder="例如：电报 · 个人提醒" maxlength="60">
+              <div id="sg-telegram-fields"><label for="sg-channel-chat">Chat ID</label><input id="sg-channel-chat" placeholder="例如：-1001234567890" inputmode="numeric" spellcheck="false"><label for="sg-channel-token">Bot Token</label><input id="sg-channel-token" type="password" autocomplete="off" placeholder="仅演示，请勿输入真实 Token"><p class="form-help" id="sg-token-hint">原生应用将按渠道保存到 macOS 钥匙串。</p></div>
+              <div class="notice" id="sg-provider-note">原型仅演示配置流程，不会发送真实通知。</div>
+              <p id="sg-channel-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" id="sg-channel-delete" class="quiet danger" hidden>删除渠道</button><button type="button" id="sg-channel-cancel">取消</button><button type="button" id="sg-channel-save" class="primary">添加渠道</button></div>
+            </form>
+          </div>
+          <div class="dialog-layer" id="sg-manual-dialog" hidden>
+            <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="sg-manual-title" aria-describedby="sg-manual-description">
+              <h2 id="sg-manual-title">结束网易云音乐？</h2><p id="sg-manual-description" class="small muted">应用将收到退出请求，请先保存需要保留的内容。</p>
+              <div class="confirm-app row"><div class="app-icon music icon"><i data-lucide="music-2" aria-hidden="true"></i></div><div><h3>网易云音乐</h3><p class="mono muted">com.netease.163music · PID 2486</p></div></div>
+              <p class="form-help">只操作当前应用，不修改规则。</p>
+              <div class="dialog-actions"><button type="button" id="sg-manual-cancel">取消</button><button type="button" class="primary" id="sg-manual-confirm">结束应用</button></div>
+            </div>
+          </div>
+          <div class="dialog-layer" id="sg-quit-dialog" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="sg-quit-title"><h2 id="sg-quit-title">退出 SleepGuard？</h2><p class="small muted">后台监控也会停止。</p><div class="dialog-actions"><button type="button" id="sg-quit-cancel">取消</button><button type="button" class="primary" id="sg-quit-confirm">退出应用与后台</button></div></div></div>
+        </div>
+        <div class="app-closed" id="sg-app-closed" hidden><span class="brand-icon icon"><i data-lucide="moon-star" aria-hidden="true"></i></span><h3>SleepGuard 已退出</h3><p class="small muted" style="margin-top:6px">后台监控已停止。</p><p class="form-help">仅演示退出，不影响本机应用。</p><button type="button" id="sg-restart-preview" class="primary">重新开始演示</button></div>
+      </section>
+    </div>
+    <div class="screen-preview" id="sg-screen-preview" tabindex="0" role="dialog" aria-modal="true" aria-label="屏幕操作预览" hidden>
+      <div id="sg-black-preview"><div class="black-screen-hint"><span class="icon"><i data-lucide="monitor-off" aria-hidden="true"></i></span><h3>所有显示器已黑屏</h3><p class="small">内置屏幕与外接屏幕一起恢复</p><div class="display-strip" aria-label="三个显示器均已黑屏示意"><div class="display-tile"><div class="display-face"></div>内置显示器</div><div class="display-tile"><div class="display-face"></div>外接显示器 1</div><div class="display-tile"><div class="display-face"></div>外接显示器 2</div></div></div><p class="black-screen-restore">任意按键或点击恢复全部屏幕 · 黑屏预览</p></div>
+      <div class="lock-preview" id="sg-lock-preview" hidden><div class="lock-clock number">10:10</div><div class="lock-date">10 月 10 日 · 星期六</div><div class="lock-avatar icon"><i data-lucide="user-round" aria-hidden="true"></i></div><h3>当前用户</h3><p>桌面已锁定</p><button type="button" id="sg-unlock-preview">模拟解锁</button><p class="small">流程预览，不会锁定这台 Mac</p></div>
+    </div>
+  </div>
+  <div class="toast" id="sg-toast" role="status" aria-live="polite" hidden></div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('sleepguard-prototype');
+  const el = id => root.querySelector('#sg-' + id);
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  const tabs = ['status', 'rules', 'notifications', 'history', 'general'];
+  const providers = {
+    telegram: { name: 'Telegram', icon: 'send', ready: true },
+    webhook: { name: 'Webhook', icon: 'webhook', ready: false },
+    feishu: { name: '飞书', icon: 'messages-square', ready: false },
+    slack: { name: 'Slack', icon: 'hash', ready: false },
+    email: { name: '邮件', icon: 'mail', ready: false }
+  };
+  const appCatalog = [
+    { key: 'music', group: '已启动', name: '网易云音乐', detail: 'PID 2486', kind: 'bundle', identity: 'com.netease.163music', icon: 'music-2', style: 'music' },
+    { key: 'chrome', group: '已启动', name: 'Google Chrome', detail: 'PID 6012', kind: 'bundle', identity: 'com.google.Chrome', icon: 'globe', style: '' },
+    { key: 'codex', group: '已启动', name: 'Codex', detail: 'PID 2588', kind: 'bundle', identity: 'com.openai.codex', icon: 'terminal', style: '' },
+    { key: 'self', group: '已启动', name: 'SleepGuard', detail: '当前应用 · 受保护', kind: 'bundle', identity: 'io.sleepguard.app', icon: 'moon-star', style: '', protected: true },
+    { key: 'caffeinate', group: '后台任务', name: 'caffeinate', detail: 'PID 5921', kind: 'path', identity: '/usr/bin/caffeinate', icon: 'coffee', style: '' },
+    { key: 'coreaudio', group: '后台任务', name: 'coreaudiod', detail: '系统进程 · 受保护', kind: 'path', identity: '/usr/sbin/coreaudiod', icon: 'volume-2', style: '', protected: true },
+    { key: 'runningboard', group: '后台任务', name: 'runningboardd', detail: '系统进程 · 受保护', kind: 'path', identity: '/usr/libexec/runningboardd', icon: 'cpu', style: '', protected: true },
+    { key: 'windows', group: '未启动', name: 'Windows App', detail: '已安装', kind: 'path', identity: '/Applications/Windows App.app/Contents/MacOS/Windows App', icon: 'monitor', style: 'windows' },
+    { key: 'remote', group: '未启动', name: 'UU 远程', detail: '已安装', kind: 'path', identity: '/Applications/UU Remote.app/Contents/MacOS/UU Remote', icon: 'screen-share', style: 'remote' },
+    { key: 'vlc', group: '未启动', name: 'VLC', detail: '已安装', kind: 'bundle', identity: 'org.videolan.vlc', icon: 'play', style: '' },
+    { key: 'code', group: '未启动', name: 'Visual Studio Code', detail: '已安装', kind: 'bundle', identity: 'com.microsoft.VSCode', icon: 'terminal', style: '' },
+    { key: 'safari', group: '未启动', name: 'Safari', detail: '已安装', kind: 'bundle', identity: 'com.apple.Safari', icon: 'globe', style: '' },
+    { key: 'iterm', group: '未启动', name: 'iTerm', detail: '已安装', kind: 'bundle', identity: 'com.googlecode.iterm2', icon: 'terminal', style: '' },
+    { key: 'obs', group: '未启动', name: 'OBS', detail: '已安装', kind: 'bundle', identity: 'com.obsproject.obs-studio', icon: 'monitor', style: '' },
+    { key: 'preview', group: '未启动', name: '预览', detail: '已安装', kind: 'bundle', identity: 'com.apple.Preview', icon: 'app-window', style: '' }
+  ];
+  const initialRules = [
+    { id: 1, name: '网易云音乐', kind: 'bundle', identity: 'com.netease.163music', notify: true, process: false, icon: 'music-2', style: 'music', protected: false },
+    { id: 2, name: 'Windows App', kind: 'path', identity: '/Applications/Windows App.app/Contents/MacOS/Windows App', notify: false, process: false, icon: 'monitor', style: 'windows', protected: false },
+    { id: 3, name: 'UU 远程', kind: 'path', identity: '/Applications/UU Remote.app/Contents/MacOS/UU Remote', notify: false, process: true, icon: 'screen-share', style: 'remote', protected: false }
+  ];
+  const state = {
+    version: 5, scenario: 'blocked', tab: 'status', pausedMinutes: 0, notifications: 2, samples: 3,
+    rules: clone(initialRules), savedRules: clone(initialRules), autoActions: false, savedAutoActions: false,
+    systemNotifications: true, channels: [{ id: 1, name: '电报 · 个人提醒', provider: 'telegram', chatId: '-1001234567890', tokenConfigured: true, enabled: true }],
+    interval: '60', grace: 5, force: false, menuOpen: true, dirty: false, compact: false,
+    manualEnded: false, manualBusy: false, quitRequested: false, refreshing: false, screenMode: null,
+    appRunning: true,
+    shortcuts: { black: null, lock: null, open: null }, shortcutErrors: {}, shortcutAttempts: {}
+  };
+  let nextRuleId = 4, nextChannelId = 2, editingRuleId = null, editingChannelId = null, dialogReturnFocus = null;
+  let manualAction = null, screenReturnFocus = null;
+  let appFilter = '全部', recordingShortcut = null;
+  const shortcutNames = { black: '黑屏', lock: '锁屏', open: '打开应用' };
+  const testResults = new Map();
+  const events = [
+    { time: '10:02', title: '第 2 轮通知 · 部分渠道失败', message: '网易云音乐 · 系统通知已送达，电报失败单独重试', kind: 'failed', results: [{ name: '系统通知', status: '已送达', success: true }, { name: '电报 · 个人提醒', status: '超时', success: false }] },
+    { time: '09:52', title: '第 1 轮通知已发送', message: '网易云音乐 · 分别记录各渠道结果', kind: 'sent', results: [{ name: '系统通知', status: '已送达', success: true }, { name: '电报 · 个人提醒', status: '已送达', success: true }] },
+    { time: '09:50', title: '发现持续阻塞', message: '网易云音乐 · 超过空闲门槛，开始累计异常采样', kind: '' },
+    { time: '09:25', title: '已请求应用退出 · 仅处理', message: 'UU 远程 · 已完成等待与复核，未发送通知', kind: '', results: [{ name: '处理', status: 'SIGTERM 已发送', success: true }] },
+    { time: '09:23', title: '条件已解除', message: 'Windows App · 不再满足持续阻塞条件，重新计数', kind: '' }
+  ];
+  function icons() { if (globalThis.renderPrototypeIcons) renderPrototypeIcons(root); }
+  function toast(message) { el('toast').textContent = message; el('toast').hidden = false; }
+  function actionLabel(rule) { return rule.notify ? (rule.process ? '通知并处理' : '仅通知') : (rule.process ? '仅处理' : '忽略'); }
+  function activeChannels() { return (state.systemNotifications ? 1 : 0) + state.channels.filter(channel => channel.enabled && providers[channel.provider].ready).length; }
+  function currentRule() { return state.savedRules.find(rule => rule.identity === 'com.netease.163music') || { notify: true, process: false }; }
+  function persist() {
+    if (!window.openai || !window.openai.setWidgetState) return;
+    const modelContent = { prototype: 'SleepGuard 菜单栏 v5', selectedPage: state.tab, scenario: state.scenario, pauseMinutes: state.pausedMinutes,
+      autoActions: state.savedAutoActions, systemNotifications: state.systemNotifications,
+      channels: state.channels.map(({ name, provider, enabled }) => ({ name, provider, enabled })),
+      rules: state.savedRules.map(({ name, kind, identity, notify, process }) => ({ name, kind, identity, notify, process })) };
+    window.openai.setWidgetState({ modelContent, privateContent: clone(state) }).catch(() => {});
+  }
+  function renderHistory() {
+    el('history-list').innerHTML = events.map(event => `<div class="history-event"><time>${escape(event.time)}</time><span class="event-dot ${event.kind}"></span><div><h3>${escape(event.title)}</h3><p>${escape(event.message)}</p>${event.results ? `<div class="delivery-results">${event.results.map(result => `<span class="tag ${result.success ? 'success' : 'warn'}">${escape(result.name)} · ${escape(result.status)}</span>`).join('')}</div>` : ''}</div></div>`).join('');
+  }
+  function renderRulesFooter() {
+    el('rules-save-state').textContent = state.dirty ? '有未保存的更改' : '没有未保存的更改';
+    el('save-rules').disabled = !state.dirty; el('discard').disabled = !state.dirty;
+    el('terminate-note').hidden = !state.rules.some(rule => rule.process);
+    el('terminate-note').textContent = '处理：连续异常 3 次后，等待 30 分钟，再留出 10 分钟并复核后请求退出。通知结果不改变处理倒计时。' + (state.autoActions ? '' : ' 自动结束总开关当前关闭。');
+  }
+  function markDirty() { state.dirty = JSON.stringify(state.rules) !== JSON.stringify(state.savedRules) || state.autoActions !== state.savedAutoActions; renderRulesFooter(); }
+  function ruleSummary(rule) {
+    if (rule.protected) return '受保护的进程，仅支持通知或忽略。';
+    if (!rule.notify && !rule.process) return '继续采样，不通知、不处理。';
+    if (rule.process && !state.autoActions) return actionLabel(rule) + ' · 自动结束总开关关闭，处理暂不执行。';
+    if (rule.process && !rule.notify) return '只执行处理等待流程，无需启用通知渠道。';
+    return rule.process ? '通知与处理分别执行。' : '发送到所有已启用的通知渠道。';
+  }
+  function renderRules() {
+    el('auto-actions').checked = state.autoActions;
+    el('rules-list').innerHTML = state.rules.map(rule => `<div class="rule-row"><div class="row"><div class="app-icon ${escape(rule.style)} icon"><i data-lucide="${escape(rule.icon)}" aria-hidden="true"></i></div><div class="grow"><h3>${escape(rule.name)}</h3><p class="mono muted">${escape(rule.identity)}</p></div><button type="button" class="quiet" data-edit-rule="${rule.id}" aria-label="编辑 ${escape(rule.name)} 规则"><span class="icon"><i data-lucide="pencil" aria-hidden="true"></i></span></button></div><div class="rule-actions"><div class="action-choices"><label><input type="checkbox" data-rule-id="${rule.id}" data-action="notify" aria-label="${escape(rule.name)} 通知" ${rule.notify ? 'checked' : ''}>通知</label><label><input type="checkbox" data-rule-id="${rule.id}" data-action="process" aria-label="${escape(rule.name)} 处理" ${rule.process ? 'checked' : ''} ${rule.protected ? 'disabled' : ''}>处理</label></div><span class="tag">${actionLabel(rule)}</span></div><p class="rule-summary">${ruleSummary(rule)}</p></div>`).join('');
+    renderRulesFooter(); icons();
+  }
+  function channelStatus(channel) {
+    if (!providers[channel.provider].ready) return '待接入';
+    if (!channel.enabled) return '已停用';
+    return state.scenario === 'channel-failure' && channel.id === 1 ? '最近发送失败' : '已启用';
+  }
+  function renderChannels() {
+    el('system-notifications').checked = state.systemNotifications;
+    el('system-status').textContent = state.systemNotifications ? '已启用' : '已停用';
+    el('test-system').disabled = !state.systemNotifications;
+    el('system-notifications').closest('.channel-row').querySelector('.app-icon').classList.toggle('lit', state.systemNotifications);
+    root.querySelectorAll('.sg-notification-icon').forEach(icon => { icon.style.color = activeChannels() ? 'var(--sg-blue)' : 'var(--sg-muted)'; });
+    el('tab-notifications').querySelector('.icon').style.color = activeChannels() ? 'var(--sg-blue)' : '';
+    el('enabled-channel-count').textContent = '已启用 ' + activeChannels() + ' 个渠道';
+    el('channels-list').innerHTML = state.channels.length ? state.channels.map(channel => {
+      const provider = providers[channel.provider], result = testResults.get(channel.id);
+      const channelHint = provider.ready ? (channel.tokenConfigured ? '已配置' : '未配置凭据') : '预留渠道';
+      return `<div class="channel-row"><div class="spread"><div class="row grow"><div class="app-icon icon ${channel.enabled && provider.ready ? 'lit' : ''}"><i data-lucide="${provider.icon}" aria-hidden="true"></i></div><div class="grow"><h3>${escape(channel.name)}</h3><p class="small muted">${escape(provider.name)}${provider.ready ? ' · Chat ID ' + escape(channel.chatId) : ''}</p></div></div><input type="checkbox" role="switch" data-channel-toggle="${channel.id}" aria-label="${escape(channel.name)} 开关" ${channel.enabled ? 'checked' : ''} ${!provider.ready ? 'disabled' : ''}></div><div class="channel-actions"><span class="tag ${channelStatus(channel) === '最近发送失败' ? 'warn' : ''}">${channelStatus(channel)}</span><button type="button" class="quiet" data-test-channel="${channel.id}" ${!provider.ready || !channel.enabled ? 'disabled' : ''}>测试</button><button type="button" class="quiet" data-edit-channel="${channel.id}">配置…</button><p class="channel-result ${result ? (result.success ? 'sent' : 'failed') : ''}" aria-live="polite">${result ? escape(result.message) : channelHint}</p></div></div>`;
+    }).join('') : '<p class="empty">暂无其他渠道，可点击“添加”。</p>';
+    el('channel-summary').textContent = activeChannels() ? '各渠道独立发送，互不影响。' : '未启用通知渠道。';
+    icons();
+  }
+  function renderState() {
+    const offline = state.scenario === 'offline', paused = !!state.pausedMinutes;
+    const physicalBlocker = !state.manualEnded && ['blocked','channel-failure','quit-unresponsive','protected'].includes(state.scenario), rule = currentRule();
+    const relevant = physicalBlocker && (rule.notify || rule.process), effective = offline ? 'offline' : paused ? 'paused' : relevant ? 'blocked' : 'healthy';
+    el('popover').dataset.state = effective; el('menu-trigger').dataset.state = effective;
+    el('service-state').textContent = offline ? '后台未运行' : paused ? '提醒与处理已暂停' : '后台运行中';
+    el('status-label').textContent = offline ? '等待后台启动' : paused ? '已暂停' : relevant ? '发现持续阻塞' : '正常监控';
+    el('status-title').textContent = offline ? '后台服务未运行' : paused ? '已暂停 ' + state.pausedMinutes + ' 分钟' : relevant ? '1 个应用需要关注' : physicalBlocker ? '当前应用已忽略' : '暂未发现休眠异常';
+    el('status-description').textContent = offline ? '启动后台后恢复采样。' : paused ? '继续采样，到期或手动恢复后重新累计。' : relevant ? actionLabel(rule) + (rule.process && !state.savedAutoActions ? ' · 处理尚未启用' : ' · 按规则继续监控') : physicalBlocker ? '仍显示防休眠请求，规则不触发操作。' : '刚唤醒，正在等待宽限期。';
+    el('idle').textContent = offline ? '未知' : physicalBlocker ? '32 分钟' : '0 秒';
+    el('menu-blockers').hidden = !relevant || offline; el('menu-healthy').hidden = relevant || offline;
+    el('menu-progress').textContent = paused ? '暂停结束后重新累计' : rule.notify ? (activeChannels() ? '已成功通知 ' + state.notifications + ' 轮 · ' + activeChannels() + ' 个渠道' : '未启用通知渠道') : state.savedAutoActions ? '仅处理 · 等待复核后退出' : '仅处理 · 总开关关闭';
+    el('pause-label').textContent = paused ? '立即恢复提醒与处理' : '暂停提醒与处理…'; el('pause-toggle').disabled = offline;
+    el('pause-note').textContent = paused ? '期间继续采样，停止所有渠道通知和自动处理。' : '暂停期间继续采样，不发送提醒或结束应用。';
+    el('last-sample').textContent = offline ? '暂无最新采样' : '每 ' + state.interval + ' 秒检查 · 刚刚更新';
+    el('settings-service').textContent = offline ? '未运行，无法持续检查' : '正在运行 · 登录后自动启动'; el('service-tag').textContent = offline ? '离线' : '运行中';
+    el('status-subtitle').textContent = offline ? '后台采样不可用，暂不推定休眠异常' : '每 ' + state.interval + ' 秒采样，最近一次检查：刚刚';
+    el('state-banner').hidden = offline; el('state-banner').style.background = relevant || paused ? 'var(--sg-orange-bg)' : 'var(--sg-bg)';
+    el('banner-title').textContent = paused ? '提醒与处理已暂停 ' + state.pausedMinutes + ' 分钟' : relevant ? '超过预期空闲时间' : physicalBlocker ? '已按规则忽略当前应用' : '正在等待唤醒宽限期';
+    el('banner-description').textContent = paused ? '仍然采集状态，到期或手动恢复后重新累计。' : relevant ? '空闲 32 分钟，超过 ' + (10 + Number(state.grace)) + ' 分钟门槛；显示器已熄灭。' : physicalBlocker ? '仍存在防休眠请求，但该应用不通知、不处理。' : '刚唤醒，空闲计时已重置。';
+    el('steps').hidden = !relevant || paused;
+    el('steps').innerHTML = `<span class="${state.samples >= 3 ? 'done' : ''}"><b>${state.samples >= 3 ? '✓' : state.samples}</b>连续检测 ${state.samples} 次</span>${rule.notify ? `<span class="${state.notifications ? 'done' : ''}"><b>${state.notifications}</b>成功通知 ${state.notifications} 轮</span>` : ''}${rule.process ? `<span><b>→</b>${state.savedAutoActions ? '处理倒计时 · 独立执行' : '处理总开关关闭'}</span>` : '<span><b>→</b>继续通知</span>'}`;
+    el('status-blocker').hidden = !physicalBlocker || offline; el('status-clear').hidden = physicalBlocker || offline; el('status-offline').hidden = !offline;
+    el('active-policy').textContent = actionLabel(rule) + (rule.process && !state.savedAutoActions ? ' · 未启用' : '');
+    el('blocker-next').textContent = paused ? '暂停结束后重新累计' : !rule.notify && !rule.process ? '已忽略，继续显示请求供诊断' : state.samples < 3 ? '等待连续 3 次异常采样' : rule.process && state.savedAutoActions ? '处理等待约 8 分钟；之后再等 10 分钟并复核' : rule.notify ? (activeChannels() ? '下次通知约 8 分钟后' : '无已启用渠道，暂不发送通知') : '自动结束总开关关闭，暂不执行处理';
+    el('auto-hint').textContent = '对勾选“处理”的应用生效，无需启用通知渠道。';
+    el('power-grace').textContent = state.grace + ' 分钟'; el('scenario').value = state.scenario;
+    el('popover').hidden = !state.menuOpen || !state.appRunning; el('menu-trigger').setAttribute('aria-expanded', String(state.menuOpen && state.appRunning)); el('popover').dataset.compact = String(state.compact);
+    el('interval').value = state.interval; el('grace').value = state.grace; el('force').checked = state.force;
+    const protectedTarget = state.scenario === 'protected';
+    el('menu-app-name').textContent = protectedTarget ? 'coreaudiod' : '网易云音乐';
+    el('detail-app-name').textContent = protectedTarget ? 'coreaudiod' : '网易云音乐';
+    const menuAppIcon = el('menu-blockers').querySelector('.app-icon'), detailAppIcon = el('status-blocker').querySelector('.app-icon');
+    [menuAppIcon, detailAppIcon].forEach(icon => {
+      icon.classList.toggle('music', !protectedTarget);
+      icon.innerHTML = '<i data-lucide="' + (protectedTarget ? 'cpu' : 'music-2') + '" aria-hidden="true"></i>';
+    });
+    el('detail-app-pid').textContent = protectedTarget ? 'PID 351 · 系统进程' : 'PID 2486 · 音频服务代持';
+    el('detail-assertion').textContent = protectedTarget ? 'com.apple.audio.context.preventuseridlesleep' : 'NetEase CloudMusic is playing music';
+    el('manual-hint').textContent = protectedTarget ? '系统进程受保护，不支持手动结束。' : '手动操作立即执行，不受自动结束开关影响。';
+    el('manual-state').textContent = state.manualBusy ? '正在处理…' : state.quitRequested ? '应用未响应退出请求' : '应用正在运行';
+    root.querySelectorAll('[data-manual]').forEach(button => { button.disabled = protectedTarget || !physicalBlocker || state.manualBusy; });
+    if (state.manualEnded) {
+      el('banner-title').textContent = '应用已退出'; el('banner-description').textContent = '当前异常请求已解除，等待下一次采样。';
+      el('status-description').textContent = '异常请求已解除，继续监控。';
+      el('status-clear').innerHTML = '<span class="icon"><i data-lucide="check" aria-hidden="true"></i></span><p>应用已退出，防休眠请求已解除</p><p class="small muted">仍按系统配置等待休眠。</p>'; icons();
+    } else {
+      el('status-clear').innerHTML = '<span class="icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><p>暂无需要告警的应用</p><p class="small muted">当前处于唤醒后的宽限期。</p>'; icons();
+    }
+    renderAppVisibility(); renderShortcuts();
+  }
+  function showTab(name, save = true) {
+    state.tab = tabs.includes(name) ? name : 'notifications';
+    tabs.forEach(tab => { el('page-' + tab).hidden = tab !== state.tab; el('tab-' + tab).setAttribute('aria-selected', String(tab === state.tab)); });
+    if (save) persist();
+  }
+  function pause(minutes) {
+    state.pausedMinutes = minutes; state.samples = 0; state.notifications = 0; el('pause-options').hidden = true; el('pause-toggle').setAttribute('aria-expanded','false'); renderState();
+    toast(minutes ? '演示：已暂停 ' + minutes + ' 分钟，继续采样。' : '演示：已恢复通知与处理，重新累计异常次数。'); persist();
+  }
+  function renderAppVisibility() {
+    el('window').hidden = !state.appRunning; el('app-closed').hidden = state.appRunning;
+    el('menu-trigger').disabled = !state.appRunning;
+  }
+  function openQuit() {
+    if (state.manualBusy) return;
+    closeDialog(); state.menuOpen = false; renderState(); dialogReturnFocus = document.activeElement;
+    el('quit-dialog').hidden = false; fitDialog(); el('quit-cancel').focus();
+  }
+  function restartPreview() {
+    closeDialog(); state.appRunning = true; state.menuOpen = false; state.scenario = 'healthy';
+    renderState(); showTab('status'); toast('演示：已重新开始，后台监控恢复。'); persist();
+  }
+  function shortcutLabel(shortcut) {
+    return shortcut ? (shortcut.ctrl ? '⌃' : '') + (shortcut.alt ? '⌥' : '') + (shortcut.shift ? '⇧' : '') + (shortcut.meta ? '⌘' : '') + shortcut.key : '未设置';
+  }
+  function shortcutID(shortcut) { return shortcut ? [shortcut.ctrl,shortcut.alt,shortcut.shift,shortcut.meta,shortcut.key].join(':') : ''; }
+  function renderShortcuts() {
+    root.querySelectorAll('[data-shortcut]').forEach(button => {
+      const name = button.dataset.shortcut;
+      button.textContent = recordingShortcut === name ? '请按组合键…' : state.shortcutAttempts[name] || shortcutLabel(state.shortcuts[name]);
+      button.dataset.recording = String(recordingShortcut === name); button.dataset.invalid = String(!!state.shortcutErrors[name]);
+      const error = root.querySelector('[data-shortcut-error="' + name + '"]');
+      error.hidden = !state.shortcutErrors[name]; error.textContent = state.shortcutErrors[name] || '';
+      root.querySelector('[data-clear-shortcut="' + name + '"]').hidden = !state.shortcuts[name];
+    });
+    el('shortcut-help').textContent = recordingShortcut ? '按下至少含两个修饰键的组合，Esc 取消。' : '点击录入组合键，Esc 取消。常用系统快捷键和重复组合不可用。';
+  }
+  function beginShortcut(name) {
+    if (recordingShortcut === name) { recordingShortcut = null; renderShortcuts(); return; }
+    recordingShortcut = name; delete state.shortcutErrors[name]; delete state.shortcutAttempts[name]; renderShortcuts();
+  }
+  function shortcutFromEvent(event) {
+    const key = /^(?:Key[A-Z]|Digit[0-9])$/.test(event.code) ? event.code.replace(/^(Key|Digit)/,'') : /^F(?:[1-9]|1[0-9])$/.test(event.key) ? event.key : null;
+    return key && { key, ctrl: event.ctrlKey, alt: event.altKey, shift: event.shiftKey, meta: event.metaKey };
+  }
+  function validateShortcut(shortcut, name) {
+    if (!shortcut || [shortcut.ctrl,shortcut.alt,shortcut.shift,shortcut.meta].filter(Boolean).length < 2) return '请使用至少两个修饰键和一个字母、数字或功能键。';
+    const { ctrl, alt, shift, meta, key } = shortcut;
+    if ((ctrl && meta && !alt && !shift && key === 'Q') || (meta && shift && key === 'Q') || (meta && alt && !ctrl && !shift && ['D','H','M'].includes(key)) || (meta && shift && ['3','4','5'].includes(key)) || (ctrl && !meta && !alt && ['F2','F3','F4','F5','F6','F7','F8'].includes(key))) return '这个组合是常用系统快捷键，请换一个。';
+    const duplicate = Object.keys(state.shortcuts).find(action => action !== name && shortcutID(state.shortcuts[action]) === shortcutID(shortcut));
+    if (duplicate) return '已用于“' + shortcutNames[duplicate] + '”，请换一个组合。';
+    return '';
+  }
+  function recordShortcut(event) {
+    const name = recordingShortcut;
+    if (event.key === 'Tab' || event.key === 'Escape') { recordingShortcut = null; renderShortcuts(); if (event.key === 'Escape') event.preventDefault(); return; }
+    event.preventDefault(); event.stopPropagation();
+    if (['Meta','Control','Alt','Shift'].includes(event.key) || event.repeat) return;
+    const shortcut = shortcutFromEvent(event), error = validateShortcut(shortcut, name);
+    if (error) { state.shortcutErrors[name] = error; state.shortcutAttempts[name] = shortcut ? shortcutLabel(shortcut) : undefined; recordingShortcut = null; renderShortcuts(); return; }
+    // Prototype only: real global registration must succeed before replacing a saved binding.
+    state.shortcuts[name] = shortcut; delete state.shortcutErrors[name]; delete state.shortcutAttempts[name]; recordingShortcut = null;
+    renderShortcuts(); toast('演示：已保存“' + shortcutNames[name] + '”快捷键，仅在当前原型中响应。'); persist();
+  }
+  function fitDialog() {
+    const layer = root.querySelector('.dialog-layer:not([hidden])');
+    el('window').style.minHeight = layer ? Math.ceil(layer.querySelector('.dialog').getBoundingClientRect().height + 75) + 'px' : '';
+  }
+  function closeDialog() {
+    ['rule-dialog','channel-dialog','manual-dialog','quit-dialog'].forEach(id => { el(id).hidden = true; }); el('channel-token').value = ''; fitDialog();
+    if (dialogReturnFocus && dialogReturnFocus.isConnected) dialogReturnFocus.focus(); dialogReturnFocus = null;
+  }
+  function selectedApp() { return appCatalog.find(app => app.key === el('app-picker').value); }
+  function updateIdentityLabel() {
+    const path = el('rule-match').value === 'path'; el('identity-label').textContent = path ? '可执行文件绝对路径' : 'Bundle ID';
+    el('rule-identity').placeholder = path ? '/Applications/Example.app/Contents/MacOS/Example' : 'com.example.app';
+  }
+  function updateRuleChoices() {
+    const app = selectedApp(), isProtected = !!(app && app.protected);
+    el('rule-process').disabled = isProtected; if (isProtected) el('rule-process').checked = false;
+    const draft = { notify: el('rule-notify').checked, process: el('rule-process').checked };
+    el('rule-action-help').textContent = isProtected ? '受保护的进程，只支持通知或忽略。' : actionLabel(draft) + (draft.process ? '；处理按等待流程执行，不依赖通知渠道。' : '；都不勾选即忽略。'); fitDialog();
+  }
+  function updateAppPicker() {
+    const app = selectedApp(), manual = el('app-picker').value === 'manual';
+    el('manual-app').hidden = !manual; el('app-details').hidden = !app; el('rule-error').hidden = true;
+    el('app-picker-name').textContent = app ? app.name : manual ? '手动填写匹配标识' : '搜索或选择应用…';
+    el('app-picker-name').classList.toggle('muted', !app && !manual);
+    el('manual-choice').textContent = manual ? '返回应用列表' : '手动填写';
+    if (app) { el('app-name').textContent = app.name; el('app-identity').textContent = app.identity; el('rule-name').value = app.name; el('rule-match').value = app.kind; el('rule-identity').value = app.identity; }
+    updateIdentityLabel(); updateRuleChoices();
+  }
+  function renderAppResults() {
+    const query = el('app-search').value.trim().toLocaleLowerCase();
+    const matches = appCatalog.filter(app => (appFilter === '全部' || app.group === appFilter) && [app.name,app.identity].some(text => text.toLocaleLowerCase().includes(query)));
+    el('app-results').innerHTML = matches.length ? ['已启动','后台任务','未启动'].map(group => {
+      const apps = matches.filter(app => app.group === group);
+      return apps.length ? `<h3>${group} · ${apps.length}</h3>` + apps.map(app => `<button type="button" data-pick-app="${app.key}" aria-label="选择 ${escape(app.name)}" aria-pressed="${app.key === el('app-picker').value}"><span class="app-icon ${app.style} icon"><i data-lucide="${app.icon}" aria-hidden="true"></i></span><span class="grow"><span class="app-name">${escape(app.name)}</span><span class="small muted" style="display:block">${escape(app.detail)}</span></span>${app.key === el('app-picker').value ? '<span class="icon"><i data-lucide="check" aria-hidden="true"></i></span>' : ''}</button>`).join('') : '';
+    }).join('') : '<p class="empty">没有找到应用，可换个关键词或手动填写。</p>';
+    root.querySelectorAll('[data-app-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.appFilter === appFilter)));
+    el('app-results').scrollTop = 0; icons(); fitDialog();
+  }
+  function showAppBrowser(show, focus = true) {
+    el('app-browser').hidden = !show; el('app-picker').setAttribute('aria-expanded', String(show));
+    if (show) { renderAppResults(); if (focus) el('app-search').focus(); }
+    fitDialog();
+  }
+  function openRule(id = null) {
+    editingRuleId = id; const rule = state.rules.find(item => item.id === id), app = rule && appCatalog.find(item => item.kind === rule.kind && item.identity === rule.identity);
+    el('app-picker').value = app ? app.key : rule ? 'manual' : '';
+    appFilter = '全部'; el('app-search').value = '';
+    el('rule-name').value = rule ? rule.name : ''; el('rule-match').value = rule ? rule.kind : 'bundle'; el('rule-identity').value = rule ? rule.identity : '';
+    el('rule-notify').checked = rule ? rule.notify : true; el('rule-process').checked = rule ? rule.process : false;
+    el('rule-dialog-title').textContent = rule ? '编辑应用规则' : '添加应用规则'; el('rule-submit').textContent = rule ? '保存规则' : '添加规则'; el('rule-delete').hidden = !rule; el('rule-error').hidden = true;
+    dialogReturnFocus = document.activeElement; el('rule-dialog').hidden = false; updateAppPicker(); showAppBrowser(!rule);
+    if (rule) el('app-picker').focus();
+  }
+  function saveRule(event) {
+    event.preventDefault(); const app = selectedApp(), name = el('rule-name').value.trim(), identity = el('rule-identity').value.trim(), kind = el('rule-match').value;
+    let error = '';
+    if (!app && el('app-picker').value !== 'manual') error = '请选择应用，或选择“手动填写”。';
+    else if (!name || !identity) error = '请填写显示名称和匹配标识。';
+    else if (kind === 'path' && !identity.startsWith('/')) error = '可执行文件路径必须以 / 开头。';
+    else if (kind === 'bundle' && !/^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+$/.test(identity)) error = '请输入有效的 Bundle ID，例如 com.example.app。';
+    else if (state.rules.some(rule => rule.id !== editingRuleId && rule.kind === kind && rule.identity === identity)) error = '这个应用已有规则，请编辑已有规则。';
+    if (error) { el('rule-error').textContent = error; el('rule-error').hidden = false; fitDialog(); return; }
+    const old = state.rules.find(rule => rule.id === editingRuleId), known = app || appCatalog.find(item => item.kind === kind && item.identity === identity), protectedProcess = !!(known && known.protected);
+    const rule = { id: old ? old.id : nextRuleId++, name, kind, identity, notify: el('rule-notify').checked, process: !protectedProcess && el('rule-process').checked, icon: known ? known.icon : old ? old.icon : 'app-window', style: known ? known.style : old ? old.style : '', protected: protectedProcess };
+    if (old) state.rules = state.rules.map(item => item.id === old.id ? rule : item); else state.rules.push(rule);
+    closeDialog(); markDirty(); renderRules(); persist();
+  }
+  function updateProvider() {
+    const ready = providers[el('channel-provider').value].ready; el('telegram-fields').hidden = !ready;
+    el('provider-note').textContent = ready ? '原型可填写 demo-token；不会保存 Token 或发送真实通知。' : '此类型尚未接入，可先添加入口。后续接入后独立配置、启用与测试。';
+    el('channel-error').hidden = true; fitDialog();
+  }
+  function openChannel(id = null) {
+    editingChannelId = id; const channel = state.channels.find(item => item.id === id);
+    el('channel-title').textContent = channel ? '配置通知渠道' : '添加通知渠道'; el('channel-save').textContent = channel ? '保存配置' : '添加渠道';
+    el('channel-provider').value = channel ? channel.provider : 'telegram'; el('channel-provider').disabled = !!channel;
+    el('channel-name').value = channel ? channel.name : ''; el('channel-chat').value = channel ? channel.chatId : ''; el('channel-token').value = '';
+    el('channel-token').placeholder = channel && channel.tokenConfigured ? '已配置 · 留空保留，填写可替换' : '仅演示，请填写 demo-token';
+    el('token-hint').textContent = channel && channel.tokenConfigured ? '已配置。每个渠道分别保存到钥匙串，互不覆盖。' : '原生应用将按渠道保存到 macOS 钥匙串。';
+    el('channel-delete').hidden = !channel; dialogReturnFocus = document.activeElement; el('channel-dialog').hidden = false; updateProvider();
+    (channel ? el('channel-name') : el('channel-provider')).focus();
+  }
+  function saveChannel(event) {
+    event.preventDefault(); const provider = el('channel-provider').value, name = el('channel-name').value.trim(), chatId = el('channel-chat').value.trim(), old = state.channels.find(item => item.id === editingChannelId);
+    const tokenConfigured = !!el('channel-token').value.trim() || !!(old && old.tokenConfigured); let error = '';
+    if (!name) error = '请输入渠道名称。';
+    else if (state.channels.some(channel => channel.id !== editingChannelId && channel.name === name)) error = '渠道名称已存在，请换一个名称。';
+    else if (providers[provider].ready && (!/^-?\d+$/.test(chatId) || !/[1-9]/.test(chatId))) error = '请输入有效的非零 Telegram Chat ID。';
+    else if (providers[provider].ready && !tokenConfigured) error = '请填写示例 Token（demo-token），此原型不保存 Token 值。';
+    if (error) { el('channel-error').textContent = error; el('channel-error').hidden = false; fitDialog(); return; }
+    const channel = { id: old ? old.id : nextChannelId++, name, provider, chatId: providers[provider].ready ? chatId : '', tokenConfigured: providers[provider].ready && tokenConfigured, enabled: providers[provider].ready && (old ? old.enabled : true) };
+    if (old) state.channels = state.channels.map(item => item.id === old.id ? channel : item); else state.channels.push(channel);
+    testResults.delete(channel.id); closeDialog(); renderChannels(); renderState(); toast(providers[provider].ready ? '演示：渠道已单独保存，其他渠道配置不变。' : '演示：已添加待接入渠道，接入后即可启用。'); persist();
+  }
+  function testChannel(id) {
+    const channel = state.channels.find(item => item.id === id); if (!channel || !channel.enabled || !providers[channel.provider].ready) return;
+    const success = !(state.scenario === 'channel-failure' && id === 1);
+    testResults.set(id, { success, message: success ? '演示：此渠道测试发送成功。' : '演示：此渠道连接超时；系统通知和其他渠道继续发送。' });
+    events.unshift({ time: '10:10', title: '测试通知 · ' + channel.name, message: success ? '只记录本渠道测试结果' : '连接超时，其他渠道不受影响', kind: success ? 'sent' : 'failed', results: [{ name: channel.name, status: success ? '已送达' : '超时', success }] });
+    renderChannels(); renderHistory();
+  }
+  function openManual(action) {
+    if (state.scenario === 'protected' || state.manualEnded || state.manualBusy || state.scenario === 'offline') return;
+    el('app-menu').open = false; state.menuOpen = false; renderState(); showTab('status');
+    closeDialog(); dialogReturnFocus = document.activeElement; manualAction = action;
+    const force = action === 'force';
+    el('manual-title').textContent = (force ? '强制结束' : '结束') + '网易云音乐？';
+    el('manual-description').textContent = force ? '应用会立即停止，未保存的内容可能丢失。' : '应用将收到退出请求，请先保存需要保留的内容。';
+    el('manual-confirm').textContent = force ? '强制结束' : '结束应用';
+    el('manual-confirm').className = force ? 'danger-primary' : 'primary';
+    el('manual-dialog').hidden = false; fitDialog(); el('manual-cancel').focus();
+  }
+  function confirmManual() {
+    if (!manualAction || state.scenario === 'protected' || state.manualBusy || state.manualEnded) return;
+    const force = manualAction === 'force'; manualAction = null; closeDialog(); state.manualBusy = true; renderState();
+    events.unshift({ time: '10:10', title: force ? '已发送强制结束请求 · 手动' : '已发送退出请求 · 手动', message: '网易云音乐 · PID 2486 · 本次操作不修改应用规则', kind: '' }); renderHistory();
+    setTimeout(() => {
+      state.manualBusy = false;
+      if (!force && state.scenario === 'quit-unresponsive') {
+        state.quitRequested = true; renderState(); toast('演示：应用未响应退出请求，可选择强制结束。');
+      } else {
+        state.manualEnded = true; state.quitRequested = false; renderState();
+        events.unshift({ time: '10:10', title: force ? '应用已强制结束 · 手动' : '应用已退出 · 手动', message: '网易云音乐 · 异常请求已解除，等待下一次采样', kind: 'sent' }); renderHistory();
+        toast(force ? '演示：应用已强制结束，异常请求已解除。' : '演示：应用已退出，异常请求已解除。');
+      }
+      persist();
+    }, 900);
+  }
+  function previewScreen(mode) {
+    if (state.manualBusy) return;
+    closeDialog(); screenReturnFocus = document.activeElement; state.menuOpen = false; renderState();
+    state.screenMode = mode; el('black-preview').hidden = mode !== 'black'; el('lock-preview').hidden = mode !== 'lock';
+    el('screen-preview').setAttribute('aria-label', mode === 'black' ? '黑屏预览，任意按键或点击恢复' : '锁屏预览');
+    el('screen-preview').hidden = false;
+    const target = mode === 'black' ? el('screen-preview') : el('unlock-preview'); target.focus({ preventScroll: true });
+  }
+  function restoreScreen() {
+    const previous = state.screenMode; if (!previous) return;
+    state.screenMode = null; el('screen-preview').hidden = true;
+    if (previous === 'black') { state.samples = 0; state.notifications = 0; }
+    renderState(); toast(previous === 'black' ? '演示：已恢复桌面，沿用原有暂停状态，重新累计异常。' : '演示：已解锁，返回桌面。');
+    const target = screenReturnFocus && screenReturnFocus.getClientRects().length ? screenReturnFocus : el('menu-trigger'); target.focus({ preventScroll: true }); screenReturnFocus = null;
+  }
+  root.querySelectorAll('[data-manual]').forEach(button => button.addEventListener('click', () => openManual(button.dataset.manual)));
+  el('manual-cancel').addEventListener('click', closeDialog); el('manual-confirm').addEventListener('click', confirmManual);
+  root.querySelectorAll('[data-screen]').forEach(button => button.addEventListener('click', () => previewScreen(button.dataset.screen)));
+  el('screen-preview').addEventListener('click', () => { if (state.screenMode === 'black') restoreScreen(); });
+  el('unlock-preview').addEventListener('click', restoreScreen);
+  el('restart-preview').addEventListener('click', restartPreview);
+  el('quit-app').addEventListener('click', openQuit); el('quit-cancel').addEventListener('click', closeDialog);
+  el('quit-confirm').addEventListener('click', () => { closeDialog(); state.appRunning = false; state.menuOpen = false; state.scenario = 'offline'; recordingShortcut = null; renderState(); toast('演示：应用与后台均已退出。'); el('restart-preview').focus(); persist(); });
+  root.querySelectorAll('[data-shortcut]').forEach(button => {
+    button.addEventListener('click', () => beginShortcut(button.dataset.shortcut));
+    button.addEventListener('blur', () => { if (recordingShortcut === button.dataset.shortcut) { recordingShortcut = null; renderShortcuts(); } });
+  });
+  root.querySelectorAll('[data-clear-shortcut]').forEach(button => button.addEventListener('click', () => { const name = button.dataset.clearShortcut; state.shortcuts[name] = null; delete state.shortcutErrors[name]; delete state.shortcutAttempts[name]; recordingShortcut = null; renderShortcuts(); persist(); }));
+  el('rule-match').addEventListener('change', updateIdentityLabel);
+  el('app-picker').addEventListener('click', () => showAppBrowser(el('app-browser').hidden));
+  el('app-search').addEventListener('input', renderAppResults);
+  root.querySelectorAll('[data-app-filter]').forEach(button => button.addEventListener('click', () => { appFilter = button.dataset.appFilter; renderAppResults(); }));
+  el('app-results').addEventListener('click', event => { const button = event.target.closest('[data-pick-app]'); if (!button) return; el('app-picker').value = button.dataset.pickApp; updateAppPicker(); showAppBrowser(false); el('app-picker').focus(); });
+  el('manual-choice').addEventListener('click', () => {
+    const manual = el('app-picker').value !== 'manual';
+    el('app-picker').value = manual ? 'manual' : '';
+    el('rule-name').value = ''; el('rule-match').value = 'bundle'; el('rule-identity').value = '';
+    updateAppPicker(); showAppBrowser(!manual); if (manual) el('rule-name').focus();
+  });
+  el('rule-notify').addEventListener('change', updateRuleChoices); el('rule-process').addEventListener('change', updateRuleChoices);
+  el('rule-form').addEventListener('submit', saveRule); el('rule-submit').addEventListener('click', saveRule); el('rule-cancel').addEventListener('click', closeDialog);
+  el('rule-delete').addEventListener('click', () => { state.rules = state.rules.filter(rule => rule.id !== editingRuleId); closeDialog(); markDirty(); renderRules(); toast('规则已从草稿移除，保存前可以撤销。'); persist(); });
+  el('add-rule').addEventListener('click', () => openRule());
+  el('rules-list').addEventListener('click', event => { const button = event.target.closest('[data-edit-rule]'); if (button) openRule(Number(button.dataset.editRule)); });
+  el('rules-list').addEventListener('change', event => {
+    const control = event.target.closest('[data-action]'); if (!control) return;
+    const rule = state.rules.find(item => item.id === Number(control.dataset.ruleId)); if (!rule || (rule.protected && control.dataset.action === 'process')) return;
+    const ruleId = control.dataset.ruleId, action = control.dataset.action;
+    rule[action] = control.checked; markDirty(); renderRules(); root.querySelector('[data-rule-id="' + ruleId + '"][data-action="' + action + '"]').focus(); persist();
+  });
+  el('auto-actions').addEventListener('change', event => { state.autoActions = event.target.checked; markDirty(); renderRules(); persist(); });
+  el('discard').addEventListener('click', () => { state.rules = clone(state.savedRules); state.autoActions = state.savedAutoActions; state.dirty = false; renderRules(); persist(); });
+  el('save-rules').addEventListener('click', () => {
+    state.savedRules = clone(state.rules); state.savedAutoActions = state.autoActions; state.dirty = false; renderRules(); renderState();
+    toast(state.scenario === 'offline' ? '演示：规则已保存，启动后台后生效。' : '演示：规则已保存并应用。通知与处理可以独立执行。'); persist();
+  });
+  el('channel-provider').addEventListener('change', updateProvider); el('channel-form').addEventListener('submit', saveChannel);
+  el('channel-save').addEventListener('click', saveChannel); el('channel-cancel').addEventListener('click', closeDialog); el('add-channel').addEventListener('click', () => openChannel());
+  el('channel-delete').addEventListener('click', () => { state.channels = state.channels.filter(channel => channel.id !== editingChannelId); testResults.delete(editingChannelId); closeDialog(); renderChannels(); renderState(); toast('演示：此渠道已移除，其他渠道继续保留。'); persist(); });
+  el('channels-list').addEventListener('change', event => {
+    const control = event.target.closest('[data-channel-toggle]'); if (!control) return;
+    const channel = state.channels.find(item => item.id === Number(control.dataset.channelToggle)); if (!channel || !providers[channel.provider].ready) return;
+    channel.enabled = control.checked; renderChannels(); renderState(); root.querySelector('[data-channel-toggle="' + channel.id + '"]').focus(); el('channel-save-state').textContent = '演示：此渠道开关已应用，其他渠道状态不变。'; persist();
+  });
+  el('channels-list').addEventListener('click', event => {
+    const edit = event.target.closest('[data-edit-channel]'), test = event.target.closest('[data-test-channel]');
+    if (edit) openChannel(Number(edit.dataset.editChannel)); else if (test) testChannel(Number(test.dataset.testChannel));
+  });
+  el('system-notifications').addEventListener('change', event => { state.systemNotifications = event.target.checked; renderChannels(); renderState(); el('channel-save-state').textContent = '演示：系统通知开关已应用，其他渠道状态不变。'; persist(); });
+  el('test-system').addEventListener('click', () => {
+    el('system-result').textContent = '演示：系统测试通知已送达通知中心。'; el('system-result').className = 'channel-result sent';
+    events.unshift({ time: '10:10', title: '测试通知 · 系统通知', message: 'macOS 通知中心已接收', kind: 'sent', results: [{ name: '系统通知', status: '已送达', success: true }] }); renderHistory();
+  });
+  root.querySelectorAll('[data-tab], [data-go]').forEach(button => button.addEventListener('click', () => {
+    if (button.dataset.go) { state.menuOpen = false; el('app-menu').open = false; renderState(); }
+    showTab(button.dataset.tab || button.dataset.go);
+  }));
+  el('menu-trigger').addEventListener('click', () => { state.menuOpen = !state.menuOpen; renderState(); persist(); });
+  el('pause-toggle').addEventListener('click', () => { if (state.pausedMinutes) { pause(0); return; } el('pause-options').hidden = !el('pause-options').hidden; el('pause-toggle').setAttribute('aria-expanded',String(!el('pause-options').hidden)); });
+  root.querySelectorAll('[data-pause]').forEach(button => button.addEventListener('click', () => pause(Number(button.dataset.pause))));
+  el('scenario').addEventListener('change', event => {
+    if (state.manualBusy) return;
+    state.scenario = event.target.value; state.pausedMinutes = 0; state.notifications = 2; state.samples = 3; testResults.clear();
+    state.manualEnded = false; state.quitRequested = false; state.menuOpen = true; state.appRunning = true; recordingShortcut = null;
+    state.shortcutErrors = {}; state.shortcutAttempts = {}; closeDialog();
+    if (state.scenario.startsWith('shortcut-')) {
+      state.menuOpen = false;
+      const conflict = state.scenario === 'shortcut-conflict', name = conflict ? 'lock' : 'black';
+      state.shortcutErrors[name] = conflict ? '⌃⌘Q 是系统锁屏快捷键，请换一个组合。' : '此组合已被其他应用占用，未保存；请换一个组合。';
+      state.shortcutAttempts[name] = conflict ? '⌃⌘Q' : '⌃⌥⌘B'; showTab('general');
+    } else if (state.scenario === 'protected' || state.scenario === 'quit-unresponsive' || state.scenario === 'blocked') showTab('status');
+    el('system-result').textContent = '使用系统通知，无需配置账号。'; el('system-result').className = 'channel-result';
+    el('pause-options').hidden = true; el('pause-toggle').setAttribute('aria-expanded','false'); renderState(); renderChannels(); persist();
+  });
+  function refresh() {
+    if (state.refreshing) return; state.refreshing = true;
+    el('refresh').disabled = true; el('detail-refresh').disabled = true;
+    el('refresh').innerHTML = '<span class="spinner" aria-hidden="true"></span>刷新中';
+    el('detail-refresh').innerHTML = '<span class="spinner" aria-hidden="true"></span>';
+    setTimeout(() => {
+      state.refreshing = false; el('refresh').disabled = false; el('detail-refresh').disabled = false;
+      el('refresh').textContent = '刷新'; el('detail-refresh').innerHTML = '<span class="icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span>';
+      renderState(); const time = new Date().toLocaleTimeString('zh-CN', { hour12: false }); el('last-sample').textContent = '最近检查 ' + time;
+      toast(state.scenario === 'offline' ? '演示：后台仍处于离线状态。' : '演示：状态已刷新，显示的是示例数据。'); icons();
+    }, 850);
+  }
+  el('refresh').addEventListener('click',refresh); el('detail-refresh').addEventListener('click',refresh);
+  el('start-service').addEventListener('click', () => { state.scenario = 'healthy'; renderState(); renderChannels(); toast('演示：后台服务已启动，等待下一次采样。'); persist(); });
+  el('save-settings').addEventListener('click', () => {
+    const grace = Number(el('grace').value); if (!Number.isInteger(grace) || grace < 1 || grace > 60) { toast('额外等待时间请输入 1 到 60 的整数。'); return; }
+    state.interval = el('interval').value; state.grace = grace; state.force = el('force').checked;
+    renderState(); toast(state.scenario === 'offline' ? '演示：设置已保存，启动后台后生效。' : '演示：设置已保存并应用。'); persist();
+  });
+  root.addEventListener('keydown', event => {
+    if (recordingShortcut) { recordShortcut(event); return; }
+    if (state.screenMode === 'black') { event.preventDefault(); restoreScreen(); return; }
+    if (state.screenMode === 'lock') {
+      if (event.key === 'Escape') { event.preventDefault(); restoreScreen(); }
+      return;
+    }
+    const layer = root.querySelector('.dialog-layer:not([hidden])');
+    if (!layer) {
+      if (!state.appRunning || ['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+      const shortcut = shortcutFromEvent(event), action = shortcut && Object.keys(state.shortcuts).find(name => shortcutID(state.shortcuts[name]) === shortcutID(shortcut));
+      if (action) { event.preventDefault(); if (action === 'open') { state.menuOpen = false; renderState(); showTab('status'); } else previewScreen(action); }
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      if (layer.id === 'sg-rule-dialog' && !el('app-browser').hidden) { showAppBrowser(false); el('app-picker').focus(); }
+      else closeDialog();
+      return;
+    }
+    if (layer.id === 'sg-rule-dialog' && !el('app-browser').hidden && document.activeElement.matches('[data-pick-app]') && ['ArrowDown','ArrowUp'].includes(event.key)) {
+      event.preventDefault(); const choices = [...el('app-results').querySelectorAll('button')], index = choices.indexOf(document.activeElement);
+      const next = choices[(index + (event.key === 'ArrowDown' ? 1 : choices.length - 1)) % choices.length]; if (next) next.focus(); return;
+    }
+    if (layer.id === 'sg-rule-dialog' && !el('app-browser').hidden && document.activeElement === el('app-search') && (event.key === 'Enter' || event.key === 'ArrowDown')) {
+      event.preventDefault(); const first = el('app-results').querySelector('button'); if (first) { if (event.key === 'Enter') first.click(); else first.focus(); } return;
+    }
+    if (event.key === 'Enter' && document.activeElement.tagName === 'INPUT' && document.activeElement.type !== 'checkbox') { if (layer.id === 'sg-rule-dialog') saveRule(event); else if (layer.id === 'sg-channel-dialog') saveChannel(event); return; }
+    if (event.key === 'Tab') {
+      const controls = [...layer.querySelectorAll('button, input, select')].filter(control => !control.disabled && control.getClientRects().length);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { last.focus(); event.preventDefault(); }
+      else if (!event.shiftKey && document.activeElement === last) { first.focus(); event.preventDefault(); }
+    }
+  });
+  function hydrate(value) {
+    const saved = value && value.privateContent;
+    if (!saved || saved.version !== 5 || !Array.isArray(saved.rules) || !Array.isArray(saved.savedRules) || !Array.isArray(saved.channels)) return;
+    if (JSON.stringify(saved) === JSON.stringify(state)) return;
+    const validRules = rules => rules.every(rule => Number.isInteger(rule.id) && typeof rule.name === 'string' && typeof rule.identity === 'string' && ['bundle','path'].includes(rule.kind) && typeof rule.notify === 'boolean' && typeof rule.process === 'boolean' && typeof rule.icon === 'string' && typeof rule.style === 'string');
+    if (!validRules(saved.rules) || !validRules(saved.savedRules) || !saved.channels.every(channel => Number.isInteger(channel.id) && providers[channel.provider] && typeof channel.name === 'string' && typeof channel.chatId === 'string' && typeof channel.enabled === 'boolean')) return;
+    if (typeof saved.appRunning !== 'boolean' || !saved.shortcuts || !saved.shortcutErrors || !saved.shortcutAttempts) return;
+    Object.assign(state, saved); state.manualBusy = false; state.screenMode = null;
+    if (!['blocked','shortcut-conflict','shortcut-unavailable','channel-failure','healthy','offline','quit-unresponsive','protected'].includes(state.scenario)) state.scenario = 'blocked';
+    nextRuleId = Math.max(3, ...state.rules.map(rule => rule.id), ...state.savedRules.map(rule => rule.id)) + 1; nextChannelId = Math.max(1, ...state.channels.map(channel => channel.id)) + 1;
+    renderRules(); renderChannels(); renderState(); showTab(state.tab, false);
+  }
+  renderRules(); renderChannels(); renderHistory(); renderState(); showTab(state.tab, false);
+  hydrate(window.openai && window.openai.widgetState);
+  window.addEventListener('openai:set_globals', event => { if (event.detail && event.detail.globals && event.detail.globals.widgetState) hydrate(event.detail.globals.widgetState); });
+  window.addEventListener('resize', fitDialog);
+  if (globalThis.Tweak) { const tweak = new Tweak({ container: el('popover'), onChange: () => { renderState(); persist(); } }); tweak.addToggle(state, 'compact', { label: '精简菜单栏面板' }); }
+})();
+</script>

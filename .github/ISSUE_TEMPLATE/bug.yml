@@ -1,0 +1,22 @@
+name: Bug report
+description: Report a reproducible SleepGuard issue
+title: '[Bug] '
+body:
+  - type: input
+    id: environment
+    attributes:
+      label: macOS version and CPU architecture
+      placeholder: macOS 15.x, Apple Silicon / Intel
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Relevant logs or screenshots
+      description: Remove Bot Tokens, passwords, private contents and personal paths.
