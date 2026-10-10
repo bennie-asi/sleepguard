@@ -32,3 +32,15 @@ xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx
   "$project_dir/macos/Tests/BackendCommandChecks.swift" \
   "$project_dir/macos/Tests/CheckSupport.swift"
 "$check_dir/command-check"
+python3 "$project_dir/scripts/check-build-in-use.py"
+sparkle_dir="$("$project_dir/scripts/fetch-sparkle.sh")"
+xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
+  -module-cache-path "$project_dir/work/swift-cache" -F "$sparkle_dir" -framework Sparkle \
+  -Xlinker -rpath -Xlinker "$sparkle_dir" -o "$check_dir/update-check" \
+  "$project_dir/macos/Sources/SleepGuard/UpdateRecovery.swift" \
+  "$project_dir/macos/Sources/SleepGuard/UpdateRelaunch.swift" \
+  "$project_dir/macos/Sources/SleepGuard/UpdateFailure.swift" \
+  "$project_dir/macos/Sources/SleepGuard/BackendCommand.swift" \
+  "$project_dir/macos/Tests/UpdateCoreChecks.swift" \
+  "$project_dir/macos/Tests/CheckSupport.swift"
+"$check_dir/update-check"

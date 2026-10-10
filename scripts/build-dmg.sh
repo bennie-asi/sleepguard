@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 project_dir="$(cd "$(dirname "$0")/.." && pwd)"
-app_dir="$project_dir/dist/SleepGuard.app"
+app_dir="${APP_OUTPUT:-$project_dir/dist/SleepGuard.app}"
 version="${VERSION:-$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app_dir/Contents/Info.plist")}"
 architecture="${ARCH:-$(uname -m)}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][A-Za-z0-9.-]+)?$ ]] || { echo 'Invalid VERSION' >&2; exit 1; }

@@ -1,11 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 project_dir="$(cd "$(dirname "$0")/.." && pwd)"
-mkdir -p "$project_dir/dist"
-build_dir="$(mktemp -d "$project_dir/dist/.sleepguard-build.XXXXXX")"
+output="${APP_OUTPUT:-$project_dir/dist/SleepGuard.app}"
+[[ "$output" == /* && "$output" == *.app ]] || { echo 'APP_OUTPUT must be an absolute .app path' >&2; exit 1; }
+python3 "$project_dir/scripts/app-in-use.py" "$output"
+mkdir -p "$(dirname "$output")"
+build_dir="$(mktemp -d "$(dirname "$output")/.sleepguard-build.XXXXXX")"
 cleanup() {
-    if [[ -e "$build_dir/previous.app" && ! -e "$project_dir/dist/SleepGuard.app" ]]; then
-        mv "$build_dir/previous.app" "$project_dir/dist/SleepGuard.app" || return
+    if [[ -e "$build_dir/previous.app" && ! -e "$output" ]]; then
+        mv "$build_dir/previous.app" "$output" || return
     fi
     rm -rf "$build_dir"
 }
@@ -65,9 +68,10 @@ else
 fi
 codesign --verify --deep --strict "$app_dir"
 touch "$app_dir"
-if [[ -e "$project_dir/dist/SleepGuard.app" ]]; then
-    mv "$project_dir/dist/SleepGuard.app" "$build_dir/previous.app"
+python3 "$project_dir/scripts/app-in-use.py" "$output"
+if [[ -e "$output" ]]; then
+    mv "$output" "$build_dir/previous.app"
 fi
-mv "$app_dir" "$project_dir/dist/SleepGuard.app"
-app_dir="$project_dir/dist/SleepGuard.app"
+mv "$app_dir" "$output"
+app_dir="$output"
 printf 'Built %s (%s, %s)\n' "$app_dir" "$version" "$arch_name"

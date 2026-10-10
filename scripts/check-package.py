@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 project = pathlib.Path(__file__).resolve().parent.parent
-app = project / 'dist/SleepGuard.app'
+app = pathlib.Path(os.environ.get('APP_OUTPUT', project / 'dist/SleepGuard.app'))
 bundle = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
 version = os.environ.get('VERSION', (project / 'VERSION').read_text().strip())
 assert bundle['CFBundleShortVersionString'] == version

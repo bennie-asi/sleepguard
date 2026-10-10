@@ -6,6 +6,8 @@
 
 Run `make test check check-ui`, then `make dmg` and `python3 scripts/check-package.py`. `make dmg` produces architecture-specific `dist/SleepGuard-<version>-<arch>.dmg` and a SHA-256 file. The first build downloads Sparkle 2.10.0 after checking its pinned SHA-256. Local builds without `SIGNING_IDENTITY` use ad-hoc signing and are not notarized.
 
+Do not replace a bundle while its App or bundled monitor is alive. The build checks both before compilation and before moving the completed bundle. Use `APP_OUTPUT="$PWD/work/dev/SleepGuard.app" make dmg` for a separate development bundle; pass the same `APP_OUTPUT` to `scripts/check-package.py`. Replacing live executables can invalidate the process identity required by the macOS installer.
+
 **Actions → Build DMG → Run workflow** builds the checked-in `VERSION` for Apple Silicon and Intel. This manual workflow uploads build artifacts but does not create a public Release. The runners are `macos-15` and `macos-15-intel`.
 
 ## Public release and update signing
@@ -49,4 +51,6 @@ The first update-enabled installation from `0.3.x` still uses the DMG because ol
 
 ## Final acceptance
 
-Before announcing automatic updates, install the actual Developer ID release on a real Mac and publish a higher signed test release. Verify a one-click upgrade, automatic checks on/off, a queued automatic install canceled by its switch, an update on exit, watcher stopped/running restoration, retained configuration and history, and failures that leave the old App usable. Test both architectures and the macOS 13 minimum. Local compilation and a synthetically signed appcast do not prove the remote upgrade path.
+Install the actual release on a real Mac and publish a higher signed release. Verify a one-click upgrade, automatic checks on/off, a queued automatic install canceled by its switch, an update on exit, watcher stopped/running restoration, retained configuration and history, and failures that leave the old App usable. Record whether the actual package uses ad-hoc or Developer ID signing; repeat the acceptance for Developer ID and notarization when those credentials are configured. Test both architectures and the macOS 13 minimum. Local compilation and a synthetically signed appcast do not prove the remote upgrade path.
+
+`python3 scripts/check-update-integration.py` prepares isolated native applications and prints each `LAUNCH_FIXTURE` path. Open that application to continue the check. The coordinator uses the production updater with a loopback feed, a temporary signing key kept in memory, and its own disposable background process. It covers ordinary installation, re-entry after a live bundle was replaced, preservation of a stopped background process, and rejection of a tampered archive before quitting. It does not use the user's configuration, Keychain or Go service. Run a single case with `--case clean_running`, `replaced_running`, `clean_stopped` or `bad_signature`.

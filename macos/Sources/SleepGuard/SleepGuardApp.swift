@@ -5,6 +5,18 @@ import Darwin
 
 @main enum SleepGuardLaunch {
     @MainActor static func main() {
+        if CommandLine.arguments.dropFirst().first == UpdateRelaunch.helperArgument {
+            NSApplication.shared.setActivationPolicy(.prohibited)
+            Task { exit(await UpdateRelaunch.runHelper(arguments: Array(CommandLine.arguments.dropFirst(2)))) }
+            NSApplication.shared.run()
+            return
+        }
+        if CommandLine.arguments.dropFirst().first == UpdateRelaunch.recoveryArgument {
+            NSApplication.shared.setActivationPolicy(.prohibited)
+            Task { exit(await UpdateRelaunch.recoverRunningCopy(arguments: Array(CommandLine.arguments.dropFirst(2)))) }
+            NSApplication.shared.run()
+            return
+        }
         if CommandLine.arguments.dropFirst().first == "--run-monitor" { exit(MonitorHelper.run(arguments: Array(CommandLine.arguments.dropFirst(2)))) }
         if CommandLine.arguments.contains("--deliver-notification") { exit(NotificationHelper.deliver()) }
         if CommandLine.arguments.contains("--notification-status") { exit(NotificationHelper.status()) }

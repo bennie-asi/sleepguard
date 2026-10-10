@@ -347,7 +347,7 @@ import UserNotifications
         try await confirmService(running: false)
         timerTask?.cancel()
     }
-    func prepareForUpdate() async throws {
+    func prepareForUpdate(continuingUpdate: Bool = false) async throws {
         guard !screenController.active else { throw BackendFailure(message: "请先结束黑屏，再更新 SleepGuard。") }
         guard !dirtyRules && !dirtySettings else { throw BackendFailure(message: "请先保存或撤销未保存的设置。") }
         guard !busy else { throw BackendFailure(message: "正在完成其他操作，请稍后更新。") }
@@ -360,7 +360,8 @@ import UserNotifications
                 try await backend.stopService()
                 try await confirmService(running: false)
             }
-            let recovery = UpdateRecovery(previousBuild: updater.build, watcherWasRunning: wasRunning, createdAt: Date())
+            let recovery = UpdateRecovery(previousBuild: updater.build, watcherWasRunning: wasRunning,
+                                          createdAt: Date(), continuingUpdate: continuingUpdate ? true : nil)
             try recovery.save()
             timerTask?.cancel()
         } catch {
@@ -386,7 +387,9 @@ import UserNotifications
             if recovery.watcherWasRunning && status?.watcherRunning != true {
                 try await launchService()
             }
-            if recovery.previousBuild != updater.build {
+            if recovery.continuingUpdate == true {
+                information = "已重新启动，将继续更新。"
+            } else if recovery.previousBuild != updater.build {
                 information = "已更新到 \(updater.version)，后台已按原状态恢复。"
             } else {
                 self.error = "更新未完成，已恢复原有后台状态。"

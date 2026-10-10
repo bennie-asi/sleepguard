@@ -115,7 +115,9 @@ make test check check-ui
 make dmg
 ```
 
-产物位于 `dist/`：`.app`、DMG 和 SHA-256 校验文件。版本默认读取根目录 `VERSION`；也可通过 `VERSION=0.4.0`、`ARCH=arm64` 或 `ARCH=x86_64` 覆盖本地构建。完整原生运行验收建议在对应架构的 Mac 上进行。
+产物位于 `dist/`：`.app`、DMG 和 SHA-256 校验文件。版本默认读取根目录 `VERSION`；也可通过 `VERSION=0.4.2`、`ARCH=arm64` 或 `ARCH=x86_64` 覆盖本地构建。完整原生运行验收建议在对应架构的 Mac 上进行。
+
+构建不会覆盖仍在运行的 App 或内置后台。开发时可指定独立目录，例如 `APP_OUTPUT="$PWD/work/dev/SleepGuard.app" make dmg`，避免替换正在使用的应用文件。
 
 ### GitHub 一键构建
 

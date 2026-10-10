@@ -48,6 +48,16 @@ import Sparkle
             try updater.start()
             started = true
             status = "已准备检查更新"
+            if CommandLine.arguments.contains(UpdateRelaunch.resumeArgument) {
+                Task { [weak self] in
+                    guard let self else { return }
+                    for _ in 0..<50 {
+                        if self.updater.canCheckForUpdates { self.installNow(); return }
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                    self.error = "更新器暂时不可用，请重试更新。"
+                }
+            }
         } catch {
             self.error = error.localizedDescription
             status = "更新服务无法启动"
@@ -122,6 +132,26 @@ import Sparkle
         cancellationRequested = false
         installingByRequest = true
         working = true
+        if !UpdateRelaunch.executableIsCurrent {
+            status = "正在重新启动并继续更新…"
+            Task { [weak self] in
+                guard let self, let model = self.model else { return }
+                do {
+                    try await model.prepareForUpdate(continuingUpdate: true)
+                    self.installPrepared = true
+                    try await UpdateRelaunch.prepareHelper()
+                    NSApp.terminate(nil)
+                } catch {
+                    self.installPrepared = false
+                    await model.restoreAfterFailedUpdate()
+                    self.error = error.localizedDescription
+                    self.status = "更新器重新启动失败"
+                    self.working = false
+                    self.installingByRequest = false
+                }
+            }
+            return
+        }
         status = "正在检查更新…"
         updater.checkForUpdates()
     }
@@ -208,8 +238,8 @@ import Sparkle
     }
 
     func showUpdaterError(_ error: any Error) async {
-        self.error = cancellationRequested ? nil : error.localizedDescription
-        status = cancellationRequested ? "已取消更新" : "更新失败"
+        self.error = cancellationRequested ? nil : UpdateFailure.details(for: error)
+        status = cancellationRequested ? "已取消更新" : UpdateFailure.title(for: error)
         working = false
         installingByRequest = false
         progress = nil
@@ -344,7 +374,7 @@ import Sparkle
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
         if let error, !installPrepared, !cancellationRequested,
            status != "未发现可安装的新版本",
-           status != "更新失败",
+           self.error == nil,
            status != "取消已排队的安装失败",
            status != "已取消退出时安装；仍可手动更新" {
             self.error = error.localizedDescription

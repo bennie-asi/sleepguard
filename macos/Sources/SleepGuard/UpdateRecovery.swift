@@ -4,9 +4,12 @@ struct UpdateRecovery: Codable {
     let previousBuild: String
     let watcherWasRunning: Bool
     let createdAt: Date
+    var continuingUpdate: Bool? = nil
 
     static var location: URL {
-        URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/sleepguard/update-recovery.json")
+        let root = ProcessInfo.processInfo.environment["SLEEPGUARD_STATE_DIR"]
+            ?? NSHomeDirectory() + "/Library/Application Support/sleepguard"
+        return URL(fileURLWithPath: root).appendingPathComponent("update-recovery.json")
     }
 
     func save() throws {
