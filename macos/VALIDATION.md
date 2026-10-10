@@ -121,4 +121,8 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - 菜单“查看完整状态”实测关闭菜单并打开管理窗口。菜单暂停显示及管理页恢复按钮均完成交互验收；本轮没有逐项重测其他导航入口。
 - `make check-ui` 通过，新增暂停优先级、后台关闭时恢复、暂停到期检查；原有后台命令、时间与快捷键检查仍通过。Go race 与 vet 通过。
 
+- [main 构建](https://github.com/bennie-asi/sleepguard/actions/runs/38047868908) 的 macOS 15 / arm64 和 macOS 15 Intel / x86_64 均通过测试、Swift 编译、包内后台入口检查、严格签名验证及 DMG 打包。对应提交为 `320341abf06caf0b83938e9e947d32329f2ff416`。
+- 本机最终 0.3.3、build 13 的 DMG 挂载后确认 Applications 链接、包内版本、完整签名和 monitor → Go 配置查询；已卸载测试镜像。最终包再次启动成功，确认退出时两个 watcher/service 标志均回读为 false；测试暂停已清除。
+- [v0.3.3 发布构建](https://github.com/bennie-asi/sleepguard/actions/runs/38048270462) 的 Apple Silicon、Intel 与 release job 均成功。[正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.3.3) 公开，含两个 DMG 与对应 SHA-256 文件，四个资产状态均回读为 uploaded。
+
 本轮未验证 Developer ID 下的实际服务注册、Intel 原生交互、重新登录和跨夜休眠；没有结束用户应用或发送 Telegram 消息。
