@@ -18,8 +18,25 @@
 
 草稿使用同一批 CI 安装包在本机签署清单，再上传和发布。Keychain 账户为 `sleepguard`，`scripts/build-appcast.sh` 支持 `SPARKLE_KEYCHAIN_ACCOUNT=sleepguard`；私钥不导出、不写入日志或仓库。只签署将实际上传的包，不能签署本机重建包后配上 CI 的下载地址。
 
-保留失败的 `v0.4.0` 标签，修复使用 `v0.4.1`。发布完成后的提交、流水线、资产和验签结果在此补充。
+保留失败的 `v0.4.0` 标签，修复使用 `v0.4.1`，不重写既有标签。
+
+## v0.4.1 正式发布证据
+
+- [正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.1) 于 2026-10-10 21:20（Asia/Shanghai）公开；API 回读为 `draft=false`、`prerelease=false`，同时是 `releases/latest`。
+- 发布提交为 `63a7aeead69bd99fd150d7452a3cbac0917d49d4`，版本 `0.4.1`、build `4001`。[main 验证](https://github.com/bennie-asi/sleepguard/actions/runs/38054300957) 和 [标签发布](https://github.com/bennie-asi/sleepguard/actions/runs/38054674149) 均成功，两种架构完成测试、应用编译、签名检查和 DMG 打包。
+- 六份发布资产全部回读为 `uploaded`：两种架构的 DMG、各自 `.sha256` 和 `appcast-arm64.xml` / `appcast-x86_64.xml`。网页另外显示 GitHub 自动生成的两个源码归档，不计入这六份上传资产。
+- 本机下载的是上述标签流水线的安装包，并通过原有 Keychain 账户签署清单。公开下载包与 CI 包逐字节一致，六份公开资产的 SHA-256 与 GitHub digest 一致；两个 `releases/latest/download/appcast-*.xml` 与签署原件一致。
+- 使用 `macos/Info.plist` 中固定的 `SUPublicEDKey` 独立验证清单和 DMG 的 Ed25519 签名，两种架构均通过。没有导出私钥，也没有放宽客户端签名校验。
+
+| 架构 | DMG SHA-256 |
+| --- | --- |
+| arm64 | `adf312c0a01816362a1fa072cd79b8deed2ce32e800e4b4cfb9a54175cf9f4fb` |
+| x86_64 | `e7345e4cc809ee446f81ffa8f8af6d4c80d180912dd585404142635b21f59ad6` |
+
+后续只有文档记忆更新时，主分支可以继续前进；`v0.4.1` 始终保留在上述发布提交。首次使用带更新器的公开版本需要安装 `0.4.1`，真实 `0.4.1 → N+1` 自动升级仍待下一次发布验收。
 
 ## 验收边界
 
-本机 Go race/vet、Swift UI 检查、arm64 App 编译与严格包检查通过。Apple Developer ID、公证、真实跨版本升级、自动安装取消、升级失败恢复及 Intel 原生交互尚未验收；不能用编译或模拟原型结果替代这些结论。
+本机 Go race/vet、Swift UI 检查、arm64 App 编译与严格包检查通过。菜单组件在原生临时窗口验证了短内容收缩、长内容滚动和恢复短内容高度；本轮未定位实际菜单栏窗口，多显示器切换也未实测。
+
+当前公开包为 ad-hoc 签名，未做 Apple Developer ID 签名和公证。本机签名工具的钥匙串窗口由用户完成系统授权；这不替代应用跨版本授权的验收。真实跨版本升级、自动安装取消、升级失败恢复及 Intel 原生交互尚未验收；不能用编译或组件检查替代这些结论。

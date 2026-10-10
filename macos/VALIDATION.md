@@ -132,4 +132,8 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - 菜单布局向内容提出有上限的高度，短内容自然收缩，长内容选择隐藏滚动条的滚动区域。上限为 640 点，且不超过当前显示器可用高度减 16 点；显示器变化时重新计算。
 - 使用实际 `MenuPanel` 编译临时原生验收窗口：短内容无滚动区域；加入 40 行临时文字后出现滚动区域，实际滚动到末尾；清除临时文字后窗口恢复短内容高度。临时窗口没有启动后台、更新器或读取用户配置。该结果验证菜单组件；本轮自动化未能定位运行中的 SleepGuard 菜单窗口，实际菜单栏入口和多显示器切换仍需验收。
 - 本机 `make check-ui`、Go race/vet、arm64 App 编译、严格包检查和工作流 YAML 解析通过。`v0.4.0` 的双架构 main 构建通过；标签发布被新增的 Apple 证书必填检查阻止。已改为 Apple 凭据可选、缺少 Sparkle Secret 时生成待签署清单的草稿。
-- `v0.4.0` 标签保留不移动；新的菜单及发布修复使用 `v0.4.1`。发布成功后在项目记忆补充流水线和资产验签结果。
+- `v0.4.0` 标签保留不移动；新的菜单及发布修复使用 `v0.4.1`。提交 `63a7aeead69bd99fd150d7452a3cbac0917d49d4` 的 [main 验证](https://github.com/bennie-asi/sleepguard/actions/runs/38054300957) 和 [标签发布](https://github.com/bennie-asi/sleepguard/actions/runs/38054674149) 均成功，Apple Silicon 与 Intel 均完成测试、应用构建、严格签名检查及 DMG 打包。
+- [v0.4.1 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.1) 已公开并成为最新正式版本。API 回读六份上传资产全部为 `uploaded`；版本为 `0.4.1`、build `4001`。公开下载的两份 DMG 与标签 CI 安装包逐字节一致，SHA-256 sidecar 和 GitHub digest 均匹配。
+- 使用本机 Keychain 签署同一批 CI DMG 的两个 appcast，用户完成签名工具的系统授权。公开下载和 latest 入口返回的 XML 与签署原件一致；使用应用内置公钥独立验证清单和安装包 Ed25519 签名，两种架构均通过。私钥没有导出、写入仓库或日志。
+
+当前公开包采用 ad-hoc 应用签名，未做 Apple 公证。以上结果覆盖构建、菜单组件及发布资产，不代表真实 `0.4.1 → N+1` 升级、自动安装撤销、失败恢复或 watcher 跨版本恢复已经通过；这些交互仍待验收。

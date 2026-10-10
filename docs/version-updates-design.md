@@ -1,6 +1,6 @@
 # SleepGuard 版本与自动更新设计
 
-状态：2026-10-10 已完成本地代码接入与 arm64 构建检查。`v0.4.0` 双架构 main 构建通过，但标签发布因缺少 Apple 证书失败；修复版本为 `0.4.1`。真实跨版本升级仍待验收。
+状态：2026-10-10 已接入更新器并公开发布 [v0.4.1](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.1)。双架构 Actions 构建、六份发布资产、更新清单和 DMG 的 Ed25519 验签均通过。`v0.4.0` 标签发布曾因缺少 Apple 证书失败，标签保留不移动。真实跨版本升级仍待验收，具体证据见 [项目记忆](project-memory.md)。
 
 ## 用户流程
 
@@ -14,9 +14,11 @@
 
 根目录 `VERSION` 是发布版本来源，当前为 `0.4.1`。`scripts/build-app.sh` 将其写入 App 的 `CFBundleShortVersionString` 和 Go CLI `version`，构建号由 `major×1000000 + minor×1000 + patch` 生成，同时写入 `CFBundleVersion` 和 CLI。当前构建号为 `4001`，两种架构共享相同版本和构建号。发布标签必须与 `VERSION` 一致，且高于最新正式 Release。Sparkle 使用 bundle 构建号选择更新。
 
-按运行包架构分别读取 GitHub 最新正式 Release 中的 `appcast-arm64.xml` 或 `appcast-x86_64.xml`；清单引用同一 Release 的对应 DMG。客户端不请求 GitHub API，也不让用户编辑任意更新 URL。Intel 版在 Rosetta 下仍读取 Intel 清单。旧版没有更新器时，首次安装 `0.4.0` 仍需按既有安装方式完成；此后才可在应用内一键更新。
+按运行包架构分别读取 GitHub 最新正式 Release 中的 `appcast-arm64.xml` 或 `appcast-x86_64.xml`；清单引用同一 Release 的对应 DMG。客户端不请求 GitHub API，也不让用户编辑任意更新 URL。Intel 版在 Rosetta 下仍读取 Intel 清单。旧版没有更新器时，首次安装公开版本 `0.4.1` 仍需按既有安装方式完成；此后才可在应用内一键更新。
 
-固定 Sparkle `2.10.0` 预构建 framework 和 SHA-256。构建脚本下载校验后，把 framework 嵌入 App，并逐一签名嵌套程序、helper、Go CLI 和主应用。正式发布使用 Developer ID、公证及 Sparkle Ed25519 私钥。公钥在 `macos/Info.plist`；私钥只放本机 Keychain 和发布环境 Secret，不入库。发布流水线给两种架构生成带包签名及清单签名的 appcast，连同 DMG、SHA-256 上传到 GitHub Release。`releases/latest/download` 指向当前正式清单。
+固定 Sparkle `2.10.0` 预构建 framework 和 SHA-256。构建脚本下载校验后，把 framework 嵌入 App，并逐一签名嵌套程序、helper、Go CLI 和主应用。Apple Developer ID 与公证凭据可选，当前公开包采用 ad-hoc 签名、未做公证。Sparkle Ed25519 校验保持必需；公钥在 `macos/Info.plist`，私钥保存在本机 Keychain，发布环境也支持 Secret，不入库。
+
+配置 Sparkle Secret 时流水线生成两份清单并公开六份资产；缺少时先创建含两个 DMG 和 SHA-256 的草稿。本机使用 Keychain 签署同一批 CI DMG 的清单，验签后上传并公开。`v0.4.1` 已通过此流程发布，`releases/latest/download` 指向其正式清单。
 
 ## 安装与后台边界
 
@@ -26,8 +28,8 @@
 
 ## 已验证与待验收
 
-已验证：arm64 App 编译、Sparkle Swift 接口、嵌套 framework 与整包签名、内置 Go CLI 版本一致性、本地 DMG 构建；使用临时合成密钥和对应测试包验证 appcast 生成与双重签名结构。交互原型验证了单击后直接完成模拟安装、取消和错误状态，但不执行实际更新。
+已验证：arm64 App 编译、Sparkle Swift 接口、嵌套 framework 与整包签名、内置 Go CLI 版本一致性、本地 DMG 构建、GitHub Actions 双架构构建及正式 Release 的六份上传资产。公开清单和安装包使用应用内置公钥独立验签通过，公开 DMG 与标签 CI 包逐字节一致。交互原型验证了单击后直接完成模拟安装、取消和错误状态，但不执行实际更新。
 
-待验收：GitHub Actions 双架构构建、正式 Developer ID 签名和公证、实际 GitHub Release 资产、`0.4.0 → 0.4.1` 一键升级、自动安装排队后关开关、安装失败恢复、watcher 跨版本恢复及 Intel/macOS 13 实机行为。没有这些结果前，不把本地编译当作真实自动更新通过。
+待验收：Developer ID 签名和公证、`0.4.1 → N+1` 一键升级、自动安装排队后关开关、安装失败恢复、watcher 跨版本恢复及 Intel/macOS 13 实机行为。没有这些结果前，不把构建和发布资产验签当作真实自动更新通过。
 
 发布准备和 Secret 配置见 [`docs/releasing.md`](releasing.md)。交互原型在本次 Codex 可视化目录中的 `sleepguard-updates.html`。
