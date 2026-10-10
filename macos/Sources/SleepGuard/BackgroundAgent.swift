@@ -16,7 +16,16 @@ struct AgentSettings: Codable {
     static func stop() async throws {
         // The original agent label may still have a legacy record in macOS's cache.
         for agent in [service, SMAppService.agent(plistName: "io.sleepguard.agent.plist")] {
-            if agent.status == .enabled || agent.status == .requiresApproval { try await agent.unregister() }
+            if agent.status == .enabled || agent.status == .requiresApproval {
+                // Keep SMAppService on the main actor. Older SDKs do not mark it
+                // Sendable, so their imported async method cannot cross actors.
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                    agent.unregister(completionHandler: { error in
+                        if let error { continuation.resume(throwing: error) }
+                        else { continuation.resume() }
+                    })
+                }
+            }
         }
     }
     static func start(configPath: String, stateDirectory: String) async throws {
