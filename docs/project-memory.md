@@ -84,9 +84,23 @@
 | arm64 | `bf2bdbadcc361cb0fe39788df03c95609f8ec9f1f931ad4d2e7610d20b3d6328` |
 | x86_64 | `2c98afcd4162f2e1368b04384e864e7fa5bbb0d2e92c7f11d675b7c7999238aa` |
 
-## 2026-10-11 日志轮转与菜单高度（未发布）
+## 2026-10-11 日志轮转与菜单高度（随后随 v0.4.4 发布）
 
 - 桌面监控的 stdout/stderr 通过管道交给应用写入 `agent.log`；按本地日期变化或 10 MiB 大小轮转。归档命名为 `agent-<毫秒时间戳>-<UUID>.log`，文件权限为 0600。只清理符合该命名的普通归档文件，不删除数据库、当前日志、其他文件或符号链接。
 - `[monitor].log_retention_days` 默认 7，范围 1–365；`log_retention_count` 默认 10，范围 1–100，份数不含当前日志。超出任一限制即删除最旧归档。应用内保存立即应用，外部配置修改在界面自动刷新时读取；监控停止期间的清理在下次启动执行。事件历史仍由 `retention_days` 单独管理。
 - 菜单改为测量内容的自然高度，窗口高度取内容与当前屏幕上限的较小值；超长内容保留滚动。移除原来的 `ViewThatFits` 加自定义有界布局组合，避免窗口沿用较大的建议高度。
 - 自动化检查、arm64 独立构建和包检查通过。原生设置页编辑和保存已回读；菜单容器的短/长/恢复短内容及屏幕高度上限变化已通过原生 NSHostingView 验证。实际菜单栏入口、多显示器切换与新版本发布尚未验收。详见 `macos/VALIDATION.md`。
+
+## v0.4.4 正式发布证据
+
+- 2026-10-11 11:21（Asia/Shanghai）回读 [正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.4)：已公开、标记 Latest，六份上传资产齐全。发布提交 `89bc2d141c94455616c88d5b6be02a2877e9af3c`，版本 `0.4.4` / build `4004`；远端 `v0.4.4` 指向同一提交。
+- 按用户要求，main 不再触发重复构建，提交后直接推送版本标签；[标签流水线](https://github.com/bennie-asi/sleepguard/actions/runs/38107826517) 的 Apple Silicon、Intel 和 release 三个任务均成功。两种架构完成 Go race/vet、Swift 检查、构建、严格签名包检查及 DMG 打包。PR 与手动构建保留。
+- 标签 CI artifacts：arm64 `11690393585`，x86_64 `11689654207`；下载 ZIP digest 和 DMG 校验和均通过。Actions 缺少 Sparkle Secret，先创建草稿；随后使用本机 Keychain 账户 `sleepguard` 对同一批 CI 安装包生成签名清单，未导出私钥或替换 CI 安装包。
+- CryptoKit 使用客户端内置公钥独立验证两份 DMG 和两份 appcast 的 Ed25519 签名通过；六份公开下载资产与 CI 包/签署原件逐字节一致，也与 GitHub 页面 digest 一致。两个 `releases/latest/download/appcast-*.xml` 均回读为 `0.4.4 / 4004` 的签署原件。
+- 本机运行的 `0.4.3 / 4003` 版本页已显示“可用版本 0.4.4”。此次只确认更新发现，不将其视为跨版本安装或真实菜单栏视觉验收通过。
+- 预览应用及其测试偏好/注册、测试二进制、独立本地构建、下载的 ZIP/DMG、清单及签名验证临时目录均已清理。保留可复用依赖/编译缓存与既有验收证据，未改动用户安装包、规则、配置、数据库或运行日志。
+
+| 架构 | DMG SHA-256 |
+| --- | --- |
+| arm64 | `f393e6ac6176d66236bdc5c9357a34c402b6e1abf360d30aa5464c8e84bd3cd1` |
+| x86_64 | `90d6c99be85dcbfbe9c5bd10e41410f26c9bc2317bb9308ff62e67612667cd9f` |

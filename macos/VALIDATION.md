@@ -272,7 +272,7 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 | arm64 | `bf2bdbadcc361cb0fe39788df03c95609f8ec9f1f931ad4d2e7610d20b3d6328` |
 | x86_64 | `2c98afcd4162f2e1368b04384e864e7fa5bbb0d2e92c7f11d675b7c7999238aa` |
 
-## 2026-10-11 日志轮转与菜单高度回归（未发布）
+## 2026-10-11 日志轮转与菜单高度回归（随后随 v0.4.4 发布）
 
 - `make test check check-ui` 通过：Go race/vet、原生配置草稿冲突、子进程生命周期及既有检查通过。新增日志配置验证覆盖旧 TOML 默认值、保存回读和非法范围；新增字段也参与同页草稿冲突检测。
 - `MonitorLogChecks` 在临时目录验证超限分块不丢字节、跨日期归档、动态保留天数/份数、重启追加、0600 权限，以及其他文件和符号链接不被清理。`check-app-monitor.py` 让独立子进程在退出时分别输出 10,000 行 stdout/stderr，连续两次启动后完整回读各 20,000 行；正常停止、异常重试与父进程退出测试均通过。
@@ -280,3 +280,17 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - 独立原生预览应用使用生产设置页与真实 Go 配置接口，配置和数据库均位于测试目录，登录项使用内存替身。界面将日志保留从 7 天/10 份改为 8 天/9 份，点击“保存并应用”后显示未修改；CLI 回读为 8/9，事件历史仍为 30 天。
 - `APP_OUTPUT=.../work/log-rotation/SleepGuard.app make app` 和相同路径的 `scripts/check-package.py` 通过，未覆盖运行中的安装包。11 个独立登录启动/更新准备场景通过。
 - 实际菜单栏入口的视觉验收未完成；未将容器测量等同于真实菜单弹窗、多显示器切换或 Intel 验收。本次未修改版本号、推送或发布安装包。
+
+## v0.4.4 正式发布证据
+
+- 2026-10-11 11:21（Asia/Shanghai）回读 [正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.4)：已公开、标记 Latest，六份上传资产齐全。发布提交 `89bc2d141c94455616c88d5b6be02a2877e9af3c`，版本 `0.4.4` / build `4004`；远端 `v0.4.4` 指向同一提交。
+- 按用户要求，main 不再触发重复构建，提交后直接推送版本标签；[标签流水线](https://github.com/bennie-asi/sleepguard/actions/runs/38107826517) 的 Apple Silicon、Intel 和 release 三个任务均成功。两种架构完成 Go race/vet、Swift 检查、构建、严格签名包检查及 DMG 打包。PR 与手动构建保留。
+- 标签 CI artifacts：arm64 `11690393585`，x86_64 `11689654207`；下载 ZIP digest 和 DMG 校验和均通过。Actions 缺少 Sparkle Secret，先创建草稿；随后使用本机 Keychain 账户 `sleepguard` 对同一批 CI 安装包生成签名清单，未导出私钥或替换 CI 安装包。
+- CryptoKit 使用客户端内置公钥独立验证两份 DMG 和两份 appcast 的 Ed25519 签名通过；六份公开下载资产与 CI 包/签署原件逐字节一致，也与 GitHub 页面 digest 一致。两个 `releases/latest/download/appcast-*.xml` 均回读为 `0.4.4 / 4004` 的签署原件。
+- 本机运行的 `0.4.3 / 4003` 版本页已显示“可用版本 0.4.4”。此次只确认更新发现，不将其视为跨版本安装或真实菜单栏视觉验收通过。
+- 预览应用及其测试偏好/注册、测试二进制、独立本地构建、下载的 ZIP/DMG、清单及签名验证临时目录均已清理。保留可复用依赖/编译缓存与既有验收证据，未改动用户安装包、规则、配置、数据库或运行日志。
+
+| 架构 | DMG SHA-256 |
+| --- | --- |
+| arm64 | `f393e6ac6176d66236bdc5c9357a34c402b6e1abf360d30aa5464c8e84bd3cd1` |
+| x86_64 | `90d6c99be85dcbfbe9c5bd10e41410f26c9bc2317bb9308ff62e67612667cd9f` |
