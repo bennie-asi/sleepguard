@@ -153,3 +153,10 @@
 | --- | --- |
 | arm64 | `55510c08c25c325774b0fc7ee7c0c1a2134d0ac2bcdbdcaa47a433835067c037` |
 | x86_64 | `acb91a5c62860b87b54eb5c8a0c57befc404e4b47bef98de49793ec29297665f` |
+
+
+## 2026-10-11 搜索重复应用条目清理
+
+- 用户反馈搜索中出现两个 SleepGuard。现场 Spotlight 文件索引只返回 `/Applications/SleepGuard.app`，但 LaunchServices 仍保留已不存在的 `work/log-rotation/SleepGuard.app`（0.4.3）及正式安装（0.4.7）两条同名应用记录。此前删除测试文件时漏清了旧注册项；先前“已清理”不应被理解为所有历史注册项都已回读确认。
+- 使用 `lsregister -u` 精确移除旧日志轮转预览路径，同时移除已不存在的 `sleepguard-build-guard-zx0nlp3p/Fixture.app` 注册及被误识别为应用的 `~/Library/HTTPStorages/io.sleepguard.app` 注册。HTTP 缓存目录本身保留，正式应用、配置、历史和运行状态均未修改；未重建全局注册库或后台项目数据库。
+- 清理后直接回读 LaunchServices，`io.sleepguard.app` 只剩 `/Applications/SleepGuard.app`，版本 0.4.7；发布清理步骤已补充“删除前取消精确路径注册，删除后回读应用列表和文件索引”。搜索界面的视觉复查未完成，界面工具未能打开 Spotlight。
