@@ -6,6 +6,7 @@ import UserNotifications
     let backend = GoBackend()
     let screenController = ScreenController()
     let shortcuts = ShortcutController()
+    let loginItem: LoginItemController
     let updater = UpdateController.shared
     private var blackoutTask: Task<Void, Never>?
     func blackout() async {
@@ -73,10 +74,10 @@ import UserNotifications
             }
         }
     }
-    @Published private(set) var serviceOperation: ServiceOperation?
+    @Published private(set) var monitorOperation: MonitorOperation?
     @Published private(set) var refreshing = false
     @Published private(set) var refreshFailure: String?
-    @Published private(set) var serviceFailure: String?
+    @Published private(set) var monitorFailure: String?
     @Published private(set) var refreshingHistory = false
     @Published private(set) var quitting = false
     @Published var permission: UNAuthorizationStatus = .notDetermined
@@ -91,6 +92,10 @@ import UserNotifications
     private var savedActions: ActionConfig?
     private var started = false
     private var statusRevision = 0
+
+    init(loginItem: LoginItemController = LoginItemController()) {
+        self.loginItem = loginItem
+    }
 
     var dirtyRules: Bool { rules != savedRules || autoActions != savedAutoActions }
     var dirtySettings: Bool { monitor != savedMonitor || actions != savedActions }
@@ -114,27 +119,47 @@ import UserNotifications
         switch permission { case .authorized, .provisional: "已授权"; case .denied: "权限已关闭"; default: "尚未授权" }
     }
     var monitoringState: MonitoringState { MonitoringState(watcherRunning: status?.watcherRunning, pausedUntil: status?.pausedDate) }
+    var monitoringWarning: String? {
+        guard status?.watcherRunning == true else { return nil }
+        if let refreshFailure { return "状态读取失败，暂时无法确认监控采样：" + refreshFailure }
+        guard let health = status?.watcherHealth else { return "监控未提供采样记录，暂时无法确认监控是否正常。" }
+        return health.warning
+    }
+    var monitoringBadge: String {
+        if monitoringWarning != nil { return "采样异常" }
+        if status?.watcherRunning == true, status?.watcherHealth?.status == "starting" { return "等待采样" }
+        return monitoringState.badge
+    }
     var menuSymbol: String {
-        switch monitoringState {
+        if monitoringWarning != nil { return "exclamationmark.circle" }
+        return switch monitoringState {
         case .paused: "pause.circle"
         case .running: status?.assessment.eligible == true ? "exclamationmark.circle" : "moon.stars"
         case .stopped, .unavailable: "moon.zzz"
         }
     }
     var headline: String {
-        if let serviceOperation { return serviceOperation.title }
+        if let monitorOperation { return monitorOperation.title }
         if status == nil, refreshFailure != nil { return "暂时无法读取状态" }
+        if refreshFailure != nil { return "当前状态暂不可确认" }
+        if monitoringState == .running { return status?.watcherHealth?.title ?? "监控采样状态未知" }
         return monitoringState.title
     }
     var monitoringDetail: String {
-        if serviceOperation != nil { return "正在确认后台运行状态…" }
-        if let serviceFailure { return serviceFailure }
+        if monitorOperation != nil { return "正在确认监控运行状态…" }
+        if let monitorFailure { return monitorFailure }
         guard let status else { return "正在读取…" }
+        if let warning = monitoringWarning {
+            return monitoringState == .paused ? "提醒与处理已暂停。" + warning : warning
+        }
         switch monitoringState {
         case .paused:
-            return "暂停至 \(ClockText.time(status.pausedUntil))。" + (status.watcherRunning ? "继续采样，可提前恢复。" : "后台未运行，可恢复并启动。")
-        case .stopped: return "启动后持续检查，关闭窗口后仍会监控。"
+            return "暂停至 \(ClockText.time(status.pausedUntil))。" + (status.watcherRunning ? "继续采样，可提前恢复。" : "监控未运行，可恢复并启动。")
+        case .stopped:
+            if let health = status.watcherHealth, !health.lastError.isEmpty { return "最近监控错误：" + health.lastError }
+            return "启动后持续检查，关闭窗口后仍会监控。"
         case .running:
+            if status.watcherHealth?.status == "starting" { return "进程已启动，正在等待首次采样完成。" }
             return (status.assessment.eligible && !applicationCandidates.isEmpty ? "\(applicationCandidates.count) 个应用需要关注。" : "") + status.assessment.reason
         case .unavailable: return "正在读取…"
         }
@@ -148,8 +173,10 @@ import UserNotifications
         }
         return groups
     }
-    func start() async {
+    func start(launchedAtLogin: Bool = false) async {
         guard !started else { return }; started = true
+        busy = true
+        defer { busy = false }
         shortcuts.onAction = { [weak self] action in
             guard let self else { return }
             switch action {
@@ -164,7 +191,15 @@ import UserNotifications
             load(envelope.config, resetRules: true, resetSettings: true)
         } catch { self.error = error.localizedDescription }
         await refresh()
-        await recoverAfterUpdate()
+        let recoveringUpdate = await recoverAfterUpdate()
+        loginItem.refresh()
+        if launchedAtLogin && loginItem.enabled && !recoveringUpdate {
+            do {
+                let current = try await backend.status()
+                if !current.watcherRunning { try await launchMonitor() }
+                await refresh()
+            } catch { monitorFailure = error.localizedDescription; self.error = "登录后启动监控失败：\(error.localizedDescription)" }
+        }
         startRefreshTimer()
         updater.start(model: self)
     }
@@ -183,19 +218,19 @@ import UserNotifications
         if resetSettings { monitor = config.monitor; actions = config.actions; savedMonitor = monitor; savedActions = actions }
     }
     func refresh(userInitiated: Bool = false) async {
-        guard !refreshing, serviceOperation == nil, !quitting else { return }; refreshing = true; defer { refreshing = false }
+        guard !refreshing, monitorOperation == nil, !quitting else { return }; refreshing = true; defer { refreshing = false }
         let revision = statusRevision
         do {
             let latest = try await backend.status()
             let envelope = try await backend.configuration()
-            guard serviceOperation == nil, !quitting, revision == statusRevision else { return }
+            guard monitorOperation == nil, !quitting, revision == statusRevision else { return }
             status = latest
             load(envelope.config, resetRules: !dirtyRules, resetSettings: !dirtySettings)
             refreshFailure = nil
             if tab == .history { await reloadHistory() }
             if userInitiated { information = "状态已更新。" }
         } catch {
-            if revision == statusRevision, serviceOperation == nil, !quitting { refreshFailure = error.localizedDescription }
+            if revision == statusRevision, monitorOperation == nil, !quitting { refreshFailure = error.localizedDescription }
         }
         // Permission lookup must not hold the status refresh gate while waiting for macOS.
         if permissionTask == nil {
@@ -226,24 +261,33 @@ import UserNotifications
     }
     // Each save changes only its own page; draft rules/settings cannot be saved by a channel toggle.
     private func update(resetRules: Bool = false, resetSettings: Bool = false, _ mutation: (inout GuardConfig) throws -> Void) async throws {
+        statusRevision += 1
+        defer { statusRevision += 1 }
         var envelope = try await backend.configuration()
+        configuration = envelope.config
         try mutation(&envelope.config)
         let saved = try await backend.save(envelope)
         load(saved.config, resetRules: resetRules, resetSettings: resetSettings)
-        information = status?.watcherRunning == true ? "已保存；后台将在下一次采样时应用。" : "已保存，启动后台后生效。"
+        information = status?.watcherRunning == true ? "已保存；监控将在下一次采样时应用。" : "已保存，启动监控后生效。"
     }
     func saveRules() async {
         guard !busy else { return }; busy = true; defer { busy = false }
-        let rules = self.rules, enabled = autoActions
-        do { try await update(resetRules: true) { $0.rules = rules; $0.actions.enabled = enabled }; await refresh() }
+        let rules = self.rules, enabled = autoActions, baseline = savedRules, baselineEnabled = savedAutoActions
+        do { try await update(resetRules: true) { try ConfigEdits.rules(rules, enabled: enabled, baseline: baseline, baselineEnabled: baselineEnabled, into: &$0) }; await refresh() }
         catch { self.error = error.localizedDescription }
     }
-    func discardRules() { rules = savedRules; autoActions = savedAutoActions }
-    func discardSettings() { monitor = savedMonitor; actions = savedActions }
+    func discardRules() {
+        if let configuration { load(configuration, resetRules: true) }
+        else { rules = savedRules; autoActions = savedAutoActions }
+    }
+    func discardSettings() {
+        if let configuration { load(configuration, resetSettings: true) }
+        else { monitor = savedMonitor; actions = savedActions }
+    }
     func saveSettings() async {
-        guard !busy, let monitor, let actions else { return }; busy = true; defer { busy = false }
+        guard !busy, let monitor, let actions, let savedMonitor, let savedActions else { return }; busy = true; defer { busy = false }
         if let message = settingsValidation { error = message; return }
-        do { try await update(resetSettings: true) { $0.monitor = monitor; $0.actions.wait = actions.wait; $0.actions.killAfter = actions.killAfter; $0.actions.allowSigkill = actions.allowSigkill }; await refresh() }
+        do { try await update(resetSettings: true) { try ConfigEdits.settings(monitor, actions: actions, baselineMonitor: savedMonitor, baselineActions: savedActions, into: &$0) }; await refresh() }
         catch { self.error = error.localizedDescription }
     }
     func setSystemNotifications(_ enabled: Bool) async {
@@ -299,15 +343,15 @@ import UserNotifications
     func resume() async {
         guard !busy, monitoringState == .paused else { return }; busy = true; statusRevision += 1
         let needsStart = status?.watcherRunning != true
-        if needsStart { serviceOperation = .starting; serviceFailure = nil }
-        defer { busy = false; serviceOperation = nil }
+        if needsStart { monitorOperation = .starting; monitorFailure = nil }
+        defer { busy = false; monitorOperation = nil }
         do {
-            if needsStart { try await launchService() }
+            if needsStart { try await launchMonitor() }
             try await backend.resume()
             try await updateMonitorStatus()
-            information = needsStart ? "后台已启动，提醒与处理已恢复。" : "已恢复提醒与处理。"
+            information = needsStart ? "监控已启动，提醒与处理已恢复。" : "已恢复提醒与处理。"
             await reloadHistory()
-        } catch { if needsStart { serviceFailure = error.localizedDescription }; self.error = error.localizedDescription }
+        } catch { if needsStart { monitorFailure = error.localizedDescription }; self.error = error.localizedDescription }
     }
     private func updateMonitorStatus() async throws {
         // Discard a periodic refresh that sampled before this operation completed.
@@ -315,91 +359,94 @@ import UserNotifications
         status = try await backend.status()
         refreshFailure = nil
     }
-    private func launchService() async throws {
+    private func launchMonitor() async throws {
         // Create a default config only when absent; leave unsaved drafts alone.
         let envelope = try await backend.configuration()
         if envelope.revision.isEmpty { _ = try await backend.save(envelope) }
-        try await backend.startService()
-        try await confirmService(running: true)
+        try await backend.startMonitor()
+        try await confirmMonitor(running: true)
     }
-    func startService() async {
-        guard !busy else { return }; busy = true; serviceOperation = .starting
-        information = nil; serviceFailure = nil; statusRevision += 1
-        defer { busy = false; serviceOperation = nil }
+    func startMonitor() async {
+        guard !busy else { return }; busy = true; monitorOperation = .starting
+        information = nil; monitorFailure = nil; statusRevision += 1
+        defer { busy = false; monitorOperation = nil }
         do {
-            try await launchService()
-            information = "后台已启动，关闭窗口后仍会监控。"
-        } catch { serviceFailure = error.localizedDescription; self.error = error.localizedDescription }
+            try await launchMonitor()
+            information = "监控已启动，关闭窗口后仍会监控。"
+        } catch { monitorFailure = error.localizedDescription; self.error = error.localizedDescription }
     }
-    func stopService() async {
-        guard !busy else { return }; busy = true; serviceOperation = .stopping
-        information = nil; serviceFailure = nil; statusRevision += 1
-        defer { busy = false; serviceOperation = nil }
-        do { try await backend.stopService(); try await confirmService(running: false); information = "后台已停止。" }
+    func stopMonitor() async {
+        guard !busy else { return }; busy = true; monitorOperation = .stopping
+        information = nil; monitorFailure = nil; statusRevision += 1
+        defer { busy = false; monitorOperation = nil }
+        do { try await backend.stopMonitor(); try await confirmMonitor(running: false); information = "监控已停止。" }
         catch { self.error = error.localizedDescription }
     }
     func stopForQuit() async throws {
         screenController.restore()
         guard !busy else { throw BackendFailure(message: "正在完成其他操作，请稍后退出。") }
-        busy = true; quitting = true; serviceOperation = .stopping; information = nil; statusRevision += 1
-        defer { busy = false; quitting = false; serviceOperation = nil }
-        try await backend.stopService()
-        try await confirmService(running: false)
+        busy = true; quitting = true; monitorOperation = .stopping; information = nil; statusRevision += 1
+        defer { busy = false; quitting = false; monitorOperation = nil }
+        try await backend.stopMonitor()
+        try await confirmMonitor(running: false)
         timerTask?.cancel()
     }
     func prepareForUpdate(continuingUpdate: Bool = false) async throws {
         guard !screenController.active else { throw BackendFailure(message: "请先结束黑屏，再更新 SleepGuard。") }
         guard !dirtyRules && !dirtySettings else { throw BackendFailure(message: "请先保存或撤销未保存的设置。") }
         guard !busy else { throw BackendFailure(message: "正在完成其他操作，请稍后更新。") }
-        busy = true; quitting = true; serviceOperation = .stopping; statusRevision += 1
-        let wasRunning: Bool
-        do { wasRunning = try await backend.status().watcherRunning }
-        catch { busy = false; quitting = false; serviceOperation = nil; throw error }
+        busy = true; quitting = true; monitorOperation = .stopping; statusRevision += 1
+        let shouldResumeMonitoring: Bool
+        do { shouldResumeMonitoring = try await backend.monitoringRequestedForUpdate() }
+        catch { busy = false; quitting = false; monitorOperation = nil; throw error }
         do {
-            if wasRunning {
-                try await backend.stopService()
-                try await confirmService(running: false)
-            }
-            let recovery = UpdateRecovery(previousBuild: updater.build, watcherWasRunning: wasRunning,
+            // A failed child can be between retries while watcherRunning is false.
+            // Always stop the owner so no retry can launch during installation.
+            try await backend.stopMonitor()
+            try await confirmMonitor(running: false)
+            let recovery = UpdateRecovery(previousBuild: updater.build, watcherWasRunning: shouldResumeMonitoring,
                                           createdAt: Date(), continuingUpdate: continuingUpdate ? true : nil)
             try recovery.save()
             timerTask?.cancel()
         } catch {
             UpdateRecovery.clear()
-            if wasRunning { try? await launchService() }
-            busy = false; quitting = false; serviceOperation = nil
+            if shouldResumeMonitoring { try? await launchMonitor() }
+            busy = false; quitting = false; monitorOperation = nil
             startRefreshTimer()
             throw error
         }
     }
     func restoreAfterFailedUpdate() async {
-        defer { busy = false; quitting = false; serviceOperation = nil; startRefreshTimer() }
+        defer { busy = false; quitting = false; monitorOperation = nil; startRefreshTimer() }
         guard let recovery = try? UpdateRecovery.take() else { return }
         if recovery.watcherWasRunning {
-            do { try await launchService() }
-            catch { self.error = "更新未完成，后台恢复失败：\(error.localizedDescription)" }
+            do { try await launchMonitor() }
+            catch { self.error = "更新未完成，监控恢复失败：\(error.localizedDescription)" }
         }
     }
-    private func recoverAfterUpdate() async {
+    private func recoverAfterUpdate() async -> Bool {
+        var recovering = false
         do {
-            guard let recovery = try UpdateRecovery.take() else { return }
-            guard Date().timeIntervalSince(recovery.createdAt) < 1800 else { return }
+            guard let recovery = try UpdateRecovery.take() else { return false }
+            guard Date().timeIntervalSince(recovery.createdAt) < 1800 else { return false }
+            recovering = true
             if recovery.watcherWasRunning && status?.watcherRunning != true {
-                try await launchService()
+                try await launchMonitor()
             }
             if recovery.continuingUpdate == true {
                 information = "已重新启动，将继续更新。"
             } else if recovery.previousBuild != updater.build {
-                information = "已更新到 \(updater.version)，后台已按原状态恢复。"
+                information = "已更新到 \(updater.version)，监控已按原状态恢复。"
             } else {
-                self.error = "更新未完成，已恢复原有后台状态。"
+                self.error = "更新未完成，已恢复原有监控状态。"
             }
             await refresh()
         } catch {
-            self.error = "更新后后台恢复失败：\(error.localizedDescription)。请在设置中检查后台服务。"
+            self.error = "更新后监控恢复失败：\(error.localizedDescription)。请在设置中检查监控。"
         }
+        return recovering
     }
-    private func confirmService(running: Bool) async throws {
+    private func confirmMonitor(running: Bool) async throws {
         let deadline = Date().addingTimeInterval(8)
         repeat {
             let latest = try await backend.status()
@@ -411,7 +458,7 @@ import UserNotifications
     }
 }
 
-enum ServiceOperation {
+enum MonitorOperation {
     case starting, stopping
-    var title: String { self == .starting ? "正在启动后台…" : "正在停止后台…" }
+    var title: String { self == .starting ? "正在启动监控…" : "正在停止监控…" }
 }

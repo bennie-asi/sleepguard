@@ -64,9 +64,9 @@ struct WatchStateBadge: View {
     @ObservedObject var model: GuardModel
     var body: some View {
         HStack(spacing: 6) {
-            if model.serviceOperation != nil { ProgressView().controlSize(.small) }
-            else { Circle().fill(model.monitoringState.color).frame(width: 6, height: 6) }
-            Text(model.serviceOperation?.title ?? model.monitoringState.badge)
+            if model.monitorOperation != nil { ProgressView().controlSize(.small) }
+            else { Circle().fill(model.monitoringWarning != nil ? .orange : model.status?.watcherHealth?.status == "starting" ? .secondary : model.monitoringState.color).frame(width: 6, height: 6) }
+            Text(model.monitorOperation?.title ?? model.monitoringBadge)
                 .font(.caption).foregroundStyle(.secondary).fixedSize()
         }
     }
@@ -94,8 +94,8 @@ struct MonitoringControl: View {
                         .frame(maxWidth: expanded ? .infinity : nil).padding(.vertical, expanded ? 8 : 2)
                 }.buttonStyle(.borderedProminent)
             case .stopped:
-                Button { Task { await model.startService() } } label: {
-                    Label("启动后台", systemImage: "play.fill")
+                Button { Task { await model.startMonitor() } } label: {
+                    Label("启动监控", systemImage: "play.fill")
                         .frame(maxWidth: expanded ? .infinity : nil).padding(.vertical, expanded ? 8 : 2)
                 }.buttonStyle(.borderedProminent)
             case .unavailable:
@@ -301,7 +301,6 @@ struct ManagementView: View {
         }.background(Color(nsColor: .windowBackgroundColor)).frame(minWidth: 560, minHeight: 520)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.tab)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.information != nil)
-            .task { await model.start() }
             .onChange(of: model.tab) { _ in if model.tab == .history { Task { await model.reloadHistory() } } }
             .alert("SleepGuard", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("好") { model.error = nil } } message: { Text(model.error ?? "") }
     }
@@ -325,7 +324,7 @@ struct SaveBar: View {
 struct StatusPage: View {
     @ObservedObject var model: GuardModel
     var body: some View {
-        PageHeading(title: "当前状态", detail: model.status.map { "最近检查：\(ClockText.preciseTime($0.snapshot.at))" } ?? "尚未读取状态") {
+        PageHeading(title: "当前状态", detail: model.status.map { "界面数据刷新：\(ClockText.preciseTime($0.snapshot.at))" } ?? "尚未读取状态") {
             HStack(spacing: 8) {
                 RefreshButton(isRefreshing: model.refreshing, unavailable: model.busy) { await model.refresh(userInitiated: true) }
             }
@@ -333,13 +332,24 @@ struct StatusPage: View {
         if let failure = model.refreshFailure { QuietNotice(text: failure + (model.status == nil ? "" : " 显示的是上次成功读取的状态。"), warning: true) }
         if let status = model.status {
             StatusSummary(model: model)
+            if let health = status.watcherHealth {
+                Text(health.hasSuccess ? "监控最近完成采样：\(ClockText.preciseTime(health.lastSuccess))" : "监控尚无成功采样记录")
+                    .font(.caption).foregroundStyle(.secondary)
+                if !health.lastError.isEmpty {
+                    QuietNotice(text: "监控错误（\(ClockText.preciseTime(health.lastErrorAt))）：\(health.lastError)", warning: true)
+                }
+            }
             if model.applicationCandidates.isEmpty { EmptyStateRow(icon: "checkmark.shield", title: "暂无阻塞休眠的应用", detail: "系统和外设请求可在下方展开查看。") }
             ForEach(model.applicationCandidates) { candidate in
                 SectionBox {
                     HStack { AppIcon(path: candidate.target?.path ?? ""); VStack(alignment: .leading, spacing: 4) { Text(candidate.label).font(.headline); Text(candidate.target.map { "PID \($0.pid) · \($0.bundleId ?? $0.path)" } ?? "责任应用未确定").font(.caption).foregroundStyle(.secondary) }; Spacer(); Text(candidate.actionLabel).font(.caption).foregroundStyle(.secondary) }.padding(14)
                     if let incident = status.incidents.first(where: { $0.key == candidate.key }) {
                         Divider()
-                        HStack { Text("连续检测 \(incident.samples) 次 · 成功通知 \(incident.notifications) 轮"); Spacer(); if incident.actionAttempted { Text(incident.actionResult ?? "已尝试处理") } }.font(.caption).foregroundStyle(.secondary).padding(14)
+                        HStack { Text("连续检测 \(incident.samples) 次 · 成功通知 \(incident.notifications) 轮"); Spacer(); if let result = incident.actionResult { Text(result) } else if incident.actionAttempted { Text("已尝试处理") } }.font(.caption).foregroundStyle(.secondary).padding(14)
+                        if !incident.actionAttempted, let retry = incident.actionRetryAt, let date = ClockText.date(retry), date > Date() {
+                            Text("尚未发送结束信号，将在 \(ClockText.preciseTime(retry)) 后重新复核。")
+                                .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 14).padding(.bottom, 8)
+                        }
                         if candidate.policy == "process" || candidate.policy == "terminate" {
                             Text(processingText(incident)).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.bottom, 14)
                         }
@@ -392,14 +402,15 @@ struct StatusSummary: View {
         SectionBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
-                    Image(systemName: model.monitoringState.symbol).font(.system(size: 22)).foregroundStyle(model.monitoringState.color)
+                    Image(systemName: model.monitoringWarning != nil ? "exclamationmark.triangle" : model.status?.watcherHealth?.status == "starting" ? "hourglass" : model.monitoringState.symbol)
+                        .font(.system(size: 22)).foregroundStyle(model.monitoringWarning != nil ? .orange : model.status?.watcherHealth?.status == "starting" ? .secondary : model.monitoringState.color)
                     Text(model.headline).font(.system(size: 17, weight: .semibold))
                     Spacer(minLength: 8)
-                    if model.serviceOperation != nil { ProgressView().controlSize(.small) }
+                    if model.monitorOperation != nil { ProgressView().controlSize(.small) }
                     else { WatchStateBadge(model: model) }
                 }
                 HStack(spacing: 12) {
-                    Text(model.monitoringDetail).font(.caption).foregroundStyle(model.serviceFailure == nil ? Color.secondary : .orange).fixedSize(horizontal: false, vertical: true)
+                    Text(model.monitoringDetail).font(.caption).foregroundStyle(model.monitorFailure == nil ? Color.secondary : .orange).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
                     MonitoringControl(model: model)
                 }
@@ -519,22 +530,22 @@ struct FileLocationRow: View {
             }
             Text(path).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
-            if !exists { Text(openFile ? "后台运行后生成日志。" : "文件尚未生成。").font(.caption).foregroundStyle(.secondary) }
+            if !exists { Text(openFile ? "监控运行后生成日志。" : "文件尚未生成。").font(.caption).foregroundStyle(.secondary) }
         }.frame(maxWidth: .infinity, alignment: .leading).padding(14)
     }
 }
-struct ServiceControlRow: View {
+struct MonitorControlRow: View {
     @ObservedObject var model: GuardModel
     var body: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("后台服务").font(.system(size: 13, weight: .medium))
+                Text("监控").font(.system(size: 13, weight: .medium))
                 WatchStateBadge(model: model)
-                if model.status?.watcherRunning == true { Text("关闭窗口后继续监控，登录后自动启动。").font(.caption).foregroundStyle(.secondary) }
+                if model.status?.watcherRunning == true { Text("关闭窗口后继续监控；登录启动由上方开关控制。").font(.caption).foregroundStyle(.secondary) }
             }
             Spacer()
-            Button(model.status?.watcherRunning == true ? "停止后台" : "启动后台") {
-                Task { if model.status?.watcherRunning == true { await model.stopService() } else { await model.startService() } }
+            Button(model.status?.watcherRunning == true ? "停止监控" : "启动监控") {
+                Task { if model.status?.watcherRunning == true { await model.stopMonitor() } else { await model.startMonitor() } }
             }.disabled(model.busy)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(14)
     }
@@ -542,15 +553,16 @@ struct ServiceControlRow: View {
 struct SettingsPage: View {
     @ObservedObject var model: GuardModel
     var body: some View {
-        PageHeading(title: "监控设置", detail: "设置检测节奏和等待时间。") { EmptyView() }
-        SectionBox { ServiceControlRow(model: model) }
+        PageHeading(title: "监控设置", detail: "设置登录启动、检测节奏和等待时间。") { EmptyView() }
+        LoginItemSection(controller: model.loginItem, disabled: model.busy)
+        SectionBox { MonitorControlRow(model: model) }
         Text("屏幕操作").font(.caption).foregroundStyle(.secondary)
         ScreenOperationsSection(model: model)
         Text("全局快捷键").font(.caption).foregroundStyle(.secondary)
         ShortcutsSection(controller: model.shortcuts)
         SectionBox {
             if model.monitor != nil {
-                DurationInput("检查间隔", value: monitorBinding(\.interval), help: "后台检查状态的间隔", minimum: 1)
+                DurationInput("检查间隔", value: monitorBinding(\.interval), help: "监控检查状态的间隔", minimum: 1)
                 Divider(); DurationInput("额外等待时间", value: monitorBinding(\.grace), help: "超过系统休眠时间后，继续等待多久再判断异常")
                 Divider(); DurationInput("唤醒宽限期", value: monitorBinding(\.wakeGrace), help: "电脑唤醒后暂缓异常判断的时间")
             }

@@ -87,6 +87,7 @@ type Incident struct {
 	LastSent        time.Time `json:"last_sent"`
 	SnoozedUntil    time.Time `json:"snoozed_until"`
 	ActionAttempted bool      `json:"action_attempted"`
+	ActionRetryAt   time.Time `json:"action_retry_at"`
 	ActionResult    string    `json:"action_result,omitempty"`
 	Active          bool      `json:"active"`
 }

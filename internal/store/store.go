@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -14,7 +15,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type Store struct{ db *sql.DB }
+type Store struct {
+	db  *sql.DB
+	dir string
+}
 
 func Open(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -41,12 +45,13 @@ func Open(dir string) (*Store, error) {
 		return nil, e
 	}
 	db.SetMaxOpenConns(1)
-	s := &Store{db}
+	s := &Store{db: db, dir: dir}
 	_, e = db.Exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS incidents (key TEXT PRIMARY KEY, data TEXT NOT NULL, active INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, incident TEXT NOT NULL, kind TEXT NOT NULL, message TEXT NOT NULL, delivery TEXT NOT NULL DEFAULT '{}');
 CREATE TABLE IF NOT EXISTS snoozes (scope TEXT PRIMARY KEY, until_ns INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS temporary_holds (scope TEXT PRIMARY KEY, until_ns INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS watcher_health (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS control_resets (scope TEXT PRIMARY KEY, version INTEGER NOT NULL);`)
 	if e != nil {
 		db.Close()
@@ -153,6 +158,9 @@ func (s *Store) History(limit int) ([]model.Event, error) {
 	return out, r.Err()
 }
 func (s *Store) Snooze(scope string, until time.Time) error {
+	return s.WithControlLock(context.Background(), func() error { return s.snooze(scope, until) })
+}
+func (s *Store) snooze(scope string, until time.Time) error {
 	tx, e := s.db.Begin()
 	if e != nil {
 		return e
@@ -167,6 +175,9 @@ func (s *Store) Snooze(scope string, until time.Time) error {
 	return tx.Commit()
 }
 func (s *Store) Resume(scope string) error {
+	return s.WithControlLock(context.Background(), func() error { return s.resume(scope) })
+}
+func (s *Store) resume(scope string) error {
 	tx, e := s.db.Begin()
 	if e != nil {
 		return e
@@ -228,6 +239,9 @@ func (s *Store) SnoozedUntil(scope string) (time.Time, error) {
 // A renewable lease stops actions during blackout without touching user snoozes.
 // If the app crashes, the hold expires rather than disabling monitoring forever.
 func (s *Store) Hold(until time.Time, begin bool) error {
+	return s.WithControlLock(context.Background(), func() error { return s.hold(until, begin) })
+}
+func (s *Store) hold(until time.Time, begin bool) error {
 	tx, e := s.db.Begin()
 	if e != nil {
 		return e
@@ -247,6 +261,9 @@ func (s *Store) Hold(until time.Time, begin bool) error {
 	return tx.Commit()
 }
 func (s *Store) ReleaseHold() error {
+	return s.WithControlLock(context.Background(), s.releaseHold)
+}
+func (s *Store) releaseHold() error {
 	tx, e := s.db.Begin()
 	if e != nil {
 		return e

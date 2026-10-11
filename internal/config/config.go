@@ -228,7 +228,7 @@ system_enabled = false # 原生应用授权后开启
 enabled = false
 chat_id = 0
 # 先读取环境变量；没有则读取当前用户登录钥匙串的同名通用密码。
-# LaunchAgent 不继承终端环境，常驻运行建议使用钥匙串。
+# 从桌面启动的应用不继承终端环境，建议使用钥匙串。
 token_env = "SLEEPGUARD_TELEGRAM_TOKEN"
 keychain_service = "sleepguard.telegram"
 timeout = "15s"

@@ -36,40 +36,22 @@ actor GoBackend {
     func processes() async throws -> [GuardProcess] { try decoder.decode([GuardProcess].self, from: await run(["ui", "processes"], timeout: 25)) }
     func pause(minutes: Int) async throws { _ = try await run(["snooze", "all", "--for", "\(minutes)m"]) }
     func resume() async throws { _ = try await run(["ui", "resume"]) }
-    private var bundled: Bool { executable == Bundle.main.resourceURL?.appendingPathComponent("sleepguard") }
-    private var legacyAgentPath: String { NSHomeDirectory() + "/Library/LaunchAgents/io.sleepguard.agent.plist" }
-    func startService() async throws {
-        guard bundled else { _ = try await run(["service", "start"]); return }
-        try await BackgroundAgent.stop()
-        _ = try await run(["service", "stop"], timeout: 20)
-        // An ad-hoc signature has no stable Team ID. SMAppService can retain its
-        // old helper hash after an update, rejecting an otherwise valid build.
-        // Use the existing app-associated LaunchAgent for these public/dev builds.
-        // Developer ID builds use the bundled native ServiceManagement agent.
-        if try await BackgroundAgent.isAdHocSigned() {
-            _ = try await run(["service", "start"], timeout: 20)
-            return
+    func startMonitor() async throws {
+        if await AppMonitor.shared.running { return }
+        guard try await !status().watcherRunning else {
+            throw BackendFailure(message: "已有其他监控进程正在运行，请先停止该进程。")
         }
-        if FileManager.default.fileExists(atPath: legacyAgentPath) { _ = try await run(["service", "uninstall"]) }
-        try await BackgroundAgent.start(configPath: configPath, stateDirectory: stateDirectory)
+        try await AppMonitor.shared.start(executable: executable, config: configPath, state: stateDirectory)
     }
-    func stopService() async throws {
-        if bundled { try await BackgroundAgent.stop() }
-        _ = try await run(["service", "stop"], timeout: 20)
-        if bundled, FileManager.default.fileExists(atPath: legacyAgentPath) {
-            _ = try await run(["service", "uninstall"])
-        }
+    func stopMonitor() async throws { try await AppMonitor.shared.stop() }
+    func monitoringRequestedForUpdate() async throws -> Bool {
+        let watcherRunning = try await status().watcherRunning
+        let requested = await AppMonitor.shared.monitoringRequested
+        return watcherRunning || requested
     }
     func startupFailure() async -> String {
-        if bundled, await BackgroundAgent.requiresApproval {
-            return "请在系统设置 → 通用 → 登录项中允许 SleepGuard 在后台运行。"
-        }
-        let label = FileManager.default.fileExists(atPath: legacyAgentPath) ? "io.sleepguard.agent" : "io.sleepguard.app.agent"
-        if let output = try? await BackendCommand.run(executable: URL(fileURLWithPath: "/bin/launchctl"), arguments: ["print", "gui/\(getuid())/\(label)"], timeout: 3),
-           String(decoding: output, as: UTF8.self).contains("OS_REASON_CODESIGNING") {
-            return "macOS 拒绝了后台程序的签名，请重新安装最新版 SleepGuard 后重试。"
-        }
-        return "后台未能启动，请在历史页查看运行日志。"
+        if let failure = await AppMonitor.shared.failure { return failure }
+        return "监控未能启动，请在历史页查看运行日志。"
     }
     func testChannel(_ id: String) async throws -> Delivery { try decoder.decode(Delivery.self, from: await run(["ui", "test-notification", "--channel", id], timeout: 75)) }
 }

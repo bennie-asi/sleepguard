@@ -370,7 +370,7 @@ globalThis.renderPrototypeIcons = function(root) {
 
   <div class="preview-bar">
     <strong>SleepGuard</strong><span class="prototype-badge">新功能原型 · 示例数据</span>
-    <label for="sg-scenario"><span class="small muted">预览状态</span><select id="sg-scenario"><option value="blocked">休眠异常</option><option value="shortcut-conflict">快捷键与系统冲突</option><option value="shortcut-unavailable">快捷键已被其他应用占用</option><option value="quit-unresponsive">应用退出无响应</option><option value="protected">受保护进程</option><option value="channel-failure">电报发送失败</option><option value="healthy">正常监控</option><option value="offline">后台离线</option></select></label>
+    <label for="sg-scenario"><span class="small muted">预览状态</span><select id="sg-scenario"><option value="blocked">休眠异常</option><option value="shortcut-conflict">快捷键与系统冲突</option><option value="shortcut-unavailable">快捷键已被其他应用占用</option><option value="quit-unresponsive">应用退出无响应</option><option value="protected">受保护进程</option><option value="channel-failure">电报发送失败</option><option value="healthy">正常监控</option><option value="offline">监控未运行</option></select></label>
   </div>
   <p class="preview-note">本轮：所有屏幕黑屏、快捷键、搜索应用。所有操作仅演示。</p>
   <div class="desktop">
@@ -383,7 +383,7 @@ globalThis.renderPrototypeIcons = function(root) {
       <section class="menu-column" aria-label="菜单栏面板">
         <div class="surface-label"><span>菜单栏面板</span><span class="label-note">点击图标即可查看</span></div>
         <div id="sg-popover" class="popover" data-state="blocked">
-          <div class="popover-header spread"><div class="row"><div class="brand-icon icon"><i data-lucide="moon-star" aria-hidden="true"></i></div><div><div class="brand-name">SleepGuard</div><div class="small muted"><span class="status-dot"></span><span id="sg-service-state">后台运行中</span></div></div></div><button type="button" class="quiet" data-go="general" aria-label="打开设置"><span class="icon"><i data-lucide="settings-2" aria-hidden="true"></i></span></button></div>
+          <div class="popover-header spread"><div class="row"><div class="brand-icon icon"><i data-lucide="moon-star" aria-hidden="true"></i></div><div><div class="brand-name">SleepGuard</div><div class="small muted"><span class="status-dot"></span><span id="sg-monitor-state">监控运行中</span></div></div></div><button type="button" class="quiet" data-go="general" aria-label="打开设置"><span class="icon"><i data-lucide="settings-2" aria-hidden="true"></i></span></button></div>
           <div class="headline" aria-live="polite"><div class="status-mark"><span class="icon"><i data-lucide="activity" aria-hidden="true"></i></span><span id="sg-status-label">发现持续阻塞</span></div><h2 id="sg-status-title">1 个应用阻止休眠</h2><p id="sg-status-description">已超过预期空闲时间，继续提醒。</p></div>
           <div class="mini-facts"><div><span class="small muted">用户空闲</span><span id="sg-idle" class="value number">32 分钟</span></div><div><span class="small muted">当前电源</span><span class="value">外接电源</span></div></div>
           <div id="sg-menu-blockers" class="section-line"><div class="spread"><span class="small muted">需要关注的应用</span><span class="tag">1 个</span></div><div class="row blocker-row"><div class="app-icon music icon"><i data-lucide="music-2" aria-hidden="true"></i></div><div class="grow"><div class="app-name" id="sg-menu-app-name">网易云音乐</div><div class="small muted" id="sg-menu-progress">已成功提醒 2 次</div></div><details class="app-menu" id="sg-app-menu"><summary aria-label="异常应用操作"><span class="icon"><i data-lucide="ellipsis" aria-hidden="true"></i></span></summary><div class="app-menu-content"><button type="button" data-manual="quit">结束应用…</button><button type="button" data-manual="force" class="danger">强制结束…</button><button type="button" class="quiet" data-go="status">查看详情</button></div></details></div></div>
@@ -396,7 +396,7 @@ globalThis.renderPrototypeIcons = function(root) {
       </section>
 
       <section aria-label="SleepGuard 管理窗口">
-        <div class="surface-label"><span>管理窗口</span><span class="label-note">关闭窗口后继续后台监控</span></div>
+        <div class="surface-label"><span>管理窗口</span><span class="label-note">关闭窗口后继续监控</span></div>
         <div class="window" id="sg-window">
           <div class="titlebar"><div class="traffic" aria-hidden="true"><span></span><span></span><span></span></div><strong>SleepGuard</strong><span class="grow"></span><span class="small muted">设置与活动</span></div>
           <div class="window-tabs" role="tablist" aria-label="管理页面"><button type="button" id="sg-tab-status" role="tab" aria-selected="false" aria-controls="sg-page-status" data-tab="status"><span class="icon"><i data-lucide="activity" aria-hidden="true"></i></span>状态</button><button type="button" id="sg-tab-rules" role="tab" aria-selected="false" aria-controls="sg-page-rules" data-tab="rules"><span class="icon"><i data-lucide="sliders-horizontal" aria-hidden="true"></i></span>规则</button><button type="button" id="sg-tab-notifications" role="tab" aria-selected="true" aria-controls="sg-page-notifications" data-tab="notifications"><span class="icon"><i data-lucide="bell" aria-hidden="true"></i></span>通知</button><button type="button" id="sg-tab-history" role="tab" aria-selected="false" aria-controls="sg-page-history" data-tab="history"><span class="icon"><i data-lucide="history" aria-hidden="true"></i></span>历史</button><button type="button" id="sg-tab-general" role="tab" aria-selected="false" aria-controls="sg-page-general" data-tab="general"><span class="icon"><i data-lucide="settings-2" aria-hidden="true"></i></span>设置</button></div>
@@ -406,7 +406,7 @@ globalThis.renderPrototypeIcons = function(root) {
             <div id="sg-state-banner" class="detail-banner"><div class="banner-title" id="sg-banner-title">超过预期空闲时间</div><p class="small" id="sg-banner-description">空闲 32 分钟，超过 15 分钟门槛；显示器已熄灭。</p><div class="steps" id="sg-steps"><span class="done"><b>✓</b>连续检测 3 次</span><span class="done"><b>2</b>已提醒 2 次</span><span><b>3</b>下一次提醒</span></div></div>
             <div id="sg-status-blocker" class="inset-group"><div class="setting-row"><div class="row"><div class="app-icon music icon"><i data-lucide="music-2" aria-hidden="true"></i></div><div><h3 id="sg-detail-app-name">网易云音乐</h3><div class="small muted" id="sg-detail-app-pid">PID 2486 · 音频服务代持</div></div></div><span id="sg-active-policy" class="tag">仅通知</span></div><div class="setting-row"><div><p class="small muted">阻止空闲系统休眠</p><p class="mono">PreventUserIdleSystemSleep</p></div></div><div class="setting-row"><div><p class="small muted">系统报告的请求名称</p><p class="small" id="sg-detail-assertion">NetEase CloudMusic is playing music</p><p class="small muted">此名称不代表当前一定在播放。</p></div></div><div class="setting-row"><span class="small muted" id="sg-blocker-next">下次提醒约 8 分钟后</span><button type="button" data-go="rules" class="quiet">调整规则</button></div><div class="setting-row manual-actions"><p class="small muted action-hint" id="sg-manual-hint">手动操作立即执行，不受自动结束开关影响。</p><span class="small muted" id="sg-manual-state" role="status">应用正在运行</span><div class="button-line"><button type="button" data-manual="quit"><span class="icon"><i data-lucide="circle-x" aria-hidden="true"></i></span>结束应用…</button><button type="button" data-manual="force" class="danger">强制结束…</button></div></div></div>
             <div id="sg-status-clear" class="empty" hidden><span class="icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><p>暂无需要告警的应用</p><p class="small muted">当前处于唤醒后的宽限期。</p></div>
-            <div id="sg-status-offline" class="offline-box" hidden><h3>后台服务未运行</h3><p class="small muted">无法判断持续阻塞或执行规则。启动后恢复检查。</p><button type="button" class="primary" id="sg-start-service">启动后台服务</button></div>
+            <div id="sg-status-offline" class="offline-box" hidden><h3>监控未运行</h3><p class="small muted">无法判断持续阻塞或执行规则。启动后恢复检查。</p><button type="button" class="primary" id="sg-start-monitor">启动监控</button></div>
             <p class="section-caption">电源与休眠配置</p><div class="inset-group"><div class="setting-row"><span>自动系统休眠</span><span class="number muted">1 分钟</span></div><div class="setting-row"><span>自动熄屏</span><span class="number muted">10 分钟</span></div><div class="setting-row"><span>额外等待时间</span><span class="number muted" id="sg-power-grace">5 分钟</span></div></div>
             <details class="diagnostic"><summary>系统与外设请求 · 仅供诊断</summary><p class="mono">powerd · 显示器亮起时阻止系统休眠<br>USB · Hub、外部存储设备、鼠标<br>MAGICWAKE · en0 网络唤醒</p><p class="small muted">这些条目不参与应用自动结束规则。</p></details>
           </div>
@@ -435,11 +435,11 @@ globalThis.renderPrototypeIcons = function(root) {
           </div>
 
           <div class="page" id="sg-page-general" role="tabpanel" aria-labelledby="sg-tab-general" hidden>
-            <div class="page-heading"><h1>设置</h1><p class="small muted">快捷操作与后台监控。</p></div>
+            <div class="page-heading"><h1>设置</h1><p class="small muted">快捷操作与监控。</p></div>
             <p class="section-caption" style="margin-top:0">快捷操作</p><div class="inset-group"><div class="setting-row"><div><h3>黑屏 <span class="tag">所有显示器</span></h3><p class="small muted">不锁屏；任意按键或点击恢复全部屏幕。</p></div><button type="button" data-screen="black">立即黑屏</button></div><div class="display-strip" aria-label="显示器范围示意"><div class="display-tile"><div class="display-face"></div><span>内置显示器</span></div><div class="display-tile"><div class="display-face"></div><span>外接显示器 1</span></div><div class="display-tile"><div class="display-face"></div><span>外接显示器 2</span></div></div><div class="setting-row" style="border-top:1px solid var(--sg-line)"><div><h3>锁屏</h3><p class="small muted">立即锁定桌面。</p></div><button type="button" data-screen="lock">立即锁屏</button></div></div><p class="form-help">黑屏为纯黑遮罩，屏幕本身不断电。</p>
             <p class="section-caption">快捷键</p><div class="inset-group" id="sg-shortcuts"><div class="shortcut-item"><div class="setting-row"><span class="row"><span class="icon"><i data-lucide="monitor-off" aria-hidden="true"></i></span>所有屏幕黑屏</span><span class="shortcut-controls"><button type="button" class="shortcut-recorder" data-shortcut="black" aria-label="设置黑屏快捷键">未设置</button><button type="button" class="quiet shortcut-clear" data-clear-shortcut="black" aria-label="清除黑屏快捷键" hidden><span class="icon"><i data-lucide="circle-x" aria-hidden="true"></i></span></button></span></div><p class="shortcut-error" data-shortcut-error="black" role="alert" hidden></p></div><div class="shortcut-item"><div class="setting-row"><span class="row"><span class="icon"><i data-lucide="lock-keyhole" aria-hidden="true"></i></span>锁屏</span><span class="shortcut-controls"><button type="button" class="shortcut-recorder" data-shortcut="lock" aria-label="设置锁屏快捷键">未设置</button><button type="button" class="quiet shortcut-clear" data-clear-shortcut="lock" aria-label="清除锁屏快捷键" hidden><span class="icon"><i data-lucide="circle-x" aria-hidden="true"></i></span></button></span></div><p class="shortcut-error" data-shortcut-error="lock" role="alert" hidden></p></div><div class="shortcut-item"><div class="setting-row"><span class="row"><span class="icon"><i data-lucide="moon-star" aria-hidden="true"></i></span>打开 SleepGuard</span><span class="shortcut-controls"><button type="button" class="shortcut-recorder" data-shortcut="open" aria-label="设置打开应用快捷键">未设置</button><button type="button" class="quiet shortcut-clear" data-clear-shortcut="open" aria-label="清除打开应用快捷键" hidden><span class="icon"><i data-lucide="circle-x" aria-hidden="true"></i></span></button></span></div><p class="shortcut-error" data-shortcut-error="open" role="alert" hidden></p></div></div><p class="form-help" id="sg-shortcut-help">点击录入组合键，Esc 取消。常用系统快捷键和重复组合不可用。</p>
             <p class="section-caption">监控</p>
-            <div class="inset-group"><div class="setting-row"><div><h3>后台服务</h3><p id="sg-settings-service" class="small muted">正在运行 · 登录后自动启动</p></div><span id="sg-service-tag" class="tag">运行中</span></div><div class="setting-row"><label for="sg-interval">检查间隔</label><select id="sg-interval"><option value="30">30 秒</option><option value="60" selected>60 秒</option><option value="120">2 分钟</option></select></div><div class="setting-row"><label for="sg-grace">额外等待时间</label><span class="row"><input id="sg-grace" type="number" min="1" max="60" value="5" aria-label="额外等待时间，分钟"><span class="muted small">分钟</span></span></div></div>
+            <div class="inset-group"><div class="setting-row"><div><h3>监控</h3><p id="sg-settings-monitor" class="small muted">正在运行 · 关闭窗口继续监控</p></div><span id="sg-monitor-tag" class="tag">运行中</span></div><div class="setting-row"><label for="sg-interval">检查间隔</label><select id="sg-interval"><option value="30">30 秒</option><option value="60" selected>60 秒</option><option value="120">2 分钟</option></select></div><div class="setting-row"><label for="sg-grace">额外等待时间</label><span class="row"><input id="sg-grace" type="number" min="1" max="60" value="5" aria-label="额外等待时间，分钟"><span class="muted small">分钟</span></span></div></div>
             <details class="diagnostic"><summary>通知与处理的高级选项</summary><div class="inset-group" style="margin-top:10px"><div class="setting-row"><span>连续异常采样</span><span class="muted">3 次</span></div><div class="setting-row"><span>通知间隔</span><span class="muted">10 分钟</span></div><div class="setting-row"><span>处理等待 / 退出前等待</span><span class="muted">30 分钟 / 10 分钟</span></div><label class="setting-row" for="sg-force"><div><h3>允许强制结束</h3><p class="small muted">请求退出 15 秒后仍阻塞，再次检查后强制结束。</p></div><input type="checkbox" id="sg-force" role="switch" aria-label="允许强制结束"></label></div><p class="form-help">处理按等待时间执行，通知发送结果不改变处理倒计时。</p></details>
             <div class="footer-actions"><span class="small muted" id="sg-settings-save-state" aria-live="polite">保存后自动加载配置</span><button type="button" id="sg-save-settings" class="primary">保存并应用</button></div>
           </div>
@@ -473,9 +473,9 @@ globalThis.renderPrototypeIcons = function(root) {
               <div class="dialog-actions"><button type="button" id="sg-manual-cancel">取消</button><button type="button" class="primary" id="sg-manual-confirm">结束应用</button></div>
             </div>
           </div>
-          <div class="dialog-layer" id="sg-quit-dialog" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="sg-quit-title"><h2 id="sg-quit-title">退出 SleepGuard？</h2><p class="small muted">后台监控也会停止。</p><div class="dialog-actions"><button type="button" id="sg-quit-cancel">取消</button><button type="button" class="primary" id="sg-quit-confirm">退出应用与后台</button></div></div></div>
+          <div class="dialog-layer" id="sg-quit-dialog" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="sg-quit-title"><h2 id="sg-quit-title">退出 SleepGuard？</h2><p class="small muted">监控也会停止。</p><div class="dialog-actions"><button type="button" id="sg-quit-cancel">取消</button><button type="button" class="primary" id="sg-quit-confirm">退出并停止监控</button></div></div></div>
         </div>
-        <div class="app-closed" id="sg-app-closed" hidden><span class="brand-icon icon"><i data-lucide="moon-star" aria-hidden="true"></i></span><h3>SleepGuard 已退出</h3><p class="small muted" style="margin-top:6px">后台监控已停止。</p><p class="form-help">仅演示退出，不影响本机应用。</p><button type="button" id="sg-restart-preview" class="primary">重新开始演示</button></div>
+        <div class="app-closed" id="sg-app-closed" hidden><span class="brand-icon icon"><i data-lucide="moon-star" aria-hidden="true"></i></span><h3>SleepGuard 已退出</h3><p class="small muted" style="margin-top:6px">监控已停止。</p><p class="form-help">仅演示退出，不影响本机应用。</p><button type="button" id="sg-restart-preview" class="primary">重新开始演示</button></div>
       </section>
     </div>
     <div class="screen-preview" id="sg-screen-preview" tabindex="0" role="dialog" aria-modal="true" aria-label="屏幕操作预览" hidden>
@@ -603,18 +603,18 @@ globalThis.renderPrototypeIcons = function(root) {
     const physicalBlocker = !state.manualEnded && ['blocked','channel-failure','quit-unresponsive','protected'].includes(state.scenario), rule = currentRule();
     const relevant = physicalBlocker && (rule.notify || rule.process), effective = offline ? 'offline' : paused ? 'paused' : relevant ? 'blocked' : 'healthy';
     el('popover').dataset.state = effective; el('menu-trigger').dataset.state = effective;
-    el('service-state').textContent = offline ? '后台未运行' : paused ? '提醒与处理已暂停' : '后台运行中';
-    el('status-label').textContent = offline ? '等待后台启动' : paused ? '已暂停' : relevant ? '发现持续阻塞' : '正常监控';
-    el('status-title').textContent = offline ? '后台服务未运行' : paused ? '已暂停 ' + state.pausedMinutes + ' 分钟' : relevant ? '1 个应用需要关注' : physicalBlocker ? '当前应用已忽略' : '暂未发现休眠异常';
-    el('status-description').textContent = offline ? '启动后台后恢复采样。' : paused ? '继续采样，到期或手动恢复后重新累计。' : relevant ? actionLabel(rule) + (rule.process && !state.savedAutoActions ? ' · 处理尚未启用' : ' · 按规则继续监控') : physicalBlocker ? '仍显示防休眠请求，规则不触发操作。' : '刚唤醒，正在等待宽限期。';
+    el('monitor-state').textContent = offline ? '监控未运行' : paused ? '提醒与处理已暂停' : '监控运行中';
+    el('status-label').textContent = offline ? '等待监控启动' : paused ? '已暂停' : relevant ? '发现持续阻塞' : '正常监控';
+    el('status-title').textContent = offline ? '监控未运行' : paused ? '已暂停 ' + state.pausedMinutes + ' 分钟' : relevant ? '1 个应用需要关注' : physicalBlocker ? '当前应用已忽略' : '暂未发现休眠异常';
+    el('status-description').textContent = offline ? '启动监控后恢复采样。' : paused ? '继续采样，到期或手动恢复后重新累计。' : relevant ? actionLabel(rule) + (rule.process && !state.savedAutoActions ? ' · 处理尚未启用' : ' · 按规则继续监控') : physicalBlocker ? '仍显示防休眠请求，规则不触发操作。' : '刚唤醒，正在等待宽限期。';
     el('idle').textContent = offline ? '未知' : physicalBlocker ? '32 分钟' : '0 秒';
     el('menu-blockers').hidden = !relevant || offline; el('menu-healthy').hidden = relevant || offline;
     el('menu-progress').textContent = paused ? '暂停结束后重新累计' : rule.notify ? (activeChannels() ? '已成功通知 ' + state.notifications + ' 轮 · ' + activeChannels() + ' 个渠道' : '未启用通知渠道') : state.savedAutoActions ? '仅处理 · 等待复核后退出' : '仅处理 · 总开关关闭';
     el('pause-label').textContent = paused ? '立即恢复提醒与处理' : '暂停提醒与处理…'; el('pause-toggle').disabled = offline;
     el('pause-note').textContent = paused ? '期间继续采样，停止所有渠道通知和自动处理。' : '暂停期间继续采样，不发送提醒或结束应用。';
     el('last-sample').textContent = offline ? '暂无最新采样' : '每 ' + state.interval + ' 秒检查 · 刚刚更新';
-    el('settings-service').textContent = offline ? '未运行，无法持续检查' : '正在运行 · 登录后自动启动'; el('service-tag').textContent = offline ? '离线' : '运行中';
-    el('status-subtitle').textContent = offline ? '后台采样不可用，暂不推定休眠异常' : '每 ' + state.interval + ' 秒采样，最近一次检查：刚刚';
+    el('settings-monitor').textContent = offline ? '未运行，无法持续检查' : '正在运行 · 关闭窗口继续监控'; el('monitor-tag').textContent = offline ? '离线' : '运行中';
+    el('status-subtitle').textContent = offline ? '监控采样不可用，暂不推定休眠异常' : '每 ' + state.interval + ' 秒采样，最近一次检查：刚刚';
     el('state-banner').hidden = offline; el('state-banner').style.background = relevant || paused ? 'var(--sg-orange-bg)' : 'var(--sg-bg)';
     el('banner-title').textContent = paused ? '提醒与处理已暂停 ' + state.pausedMinutes + ' 分钟' : relevant ? '超过预期空闲时间' : physicalBlocker ? '已按规则忽略当前应用' : '正在等待唤醒宽限期';
     el('banner-description').textContent = paused ? '仍然采集状态，到期或手动恢复后重新累计。' : relevant ? '空闲 32 分钟，超过 ' + (10 + Number(state.grace)) + ' 分钟门槛；显示器已熄灭。' : physicalBlocker ? '仍存在防休眠请求，但该应用不通知、不处理。' : '刚唤醒，空闲计时已重置。';
@@ -669,7 +669,7 @@ globalThis.renderPrototypeIcons = function(root) {
   }
   function restartPreview() {
     closeDialog(); state.appRunning = true; state.menuOpen = false; state.scenario = 'healthy';
-    renderState(); showTab('status'); toast('演示：已重新开始，后台监控恢复。'); persist();
+    renderState(); showTab('status'); toast('演示：已重新开始，监控恢复。'); persist();
   }
   function shortcutLabel(shortcut) {
     return shortcut ? (shortcut.ctrl ? '⌃' : '') + (shortcut.alt ? '⌥' : '') + (shortcut.shift ? '⇧' : '') + (shortcut.meta ? '⌘' : '') + shortcut.key : '未设置';
@@ -863,7 +863,7 @@ globalThis.renderPrototypeIcons = function(root) {
   el('unlock-preview').addEventListener('click', restoreScreen);
   el('restart-preview').addEventListener('click', restartPreview);
   el('quit-app').addEventListener('click', openQuit); el('quit-cancel').addEventListener('click', closeDialog);
-  el('quit-confirm').addEventListener('click', () => { closeDialog(); state.appRunning = false; state.menuOpen = false; state.scenario = 'offline'; recordingShortcut = null; renderState(); toast('演示：应用与后台均已退出。'); el('restart-preview').focus(); persist(); });
+  el('quit-confirm').addEventListener('click', () => { closeDialog(); state.appRunning = false; state.menuOpen = false; state.scenario = 'offline'; recordingShortcut = null; renderState(); toast('演示：应用已退出，监控已停止。'); el('restart-preview').focus(); persist(); });
   root.querySelectorAll('[data-shortcut]').forEach(button => {
     button.addEventListener('click', () => beginShortcut(button.dataset.shortcut));
     button.addEventListener('blur', () => { if (recordingShortcut === button.dataset.shortcut) { recordingShortcut = null; renderShortcuts(); } });
@@ -895,7 +895,7 @@ globalThis.renderPrototypeIcons = function(root) {
   el('discard').addEventListener('click', () => { state.rules = clone(state.savedRules); state.autoActions = state.savedAutoActions; state.dirty = false; renderRules(); persist(); });
   el('save-rules').addEventListener('click', () => {
     state.savedRules = clone(state.rules); state.savedAutoActions = state.autoActions; state.dirty = false; renderRules(); renderState();
-    toast(state.scenario === 'offline' ? '演示：规则已保存，启动后台后生效。' : '演示：规则已保存并应用。通知与处理可以独立执行。'); persist();
+    toast(state.scenario === 'offline' ? '演示：规则已保存，启动监控后生效。' : '演示：规则已保存并应用。通知与处理可以独立执行。'); persist();
   });
   el('channel-provider').addEventListener('change', updateProvider); el('channel-form').addEventListener('submit', saveChannel);
   el('channel-save').addEventListener('click', saveChannel); el('channel-cancel').addEventListener('click', closeDialog); el('add-channel').addEventListener('click', () => openChannel());
@@ -944,15 +944,15 @@ globalThis.renderPrototypeIcons = function(root) {
       state.refreshing = false; el('refresh').disabled = false; el('detail-refresh').disabled = false;
       el('refresh').textContent = '刷新'; el('detail-refresh').innerHTML = '<span class="icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span>';
       renderState(); const time = new Date().toLocaleTimeString('zh-CN', { hour12: false }); el('last-sample').textContent = '最近检查 ' + time;
-      toast(state.scenario === 'offline' ? '演示：后台仍处于离线状态。' : '演示：状态已刷新，显示的是示例数据。'); icons();
+      toast(state.scenario === 'offline' ? '演示：监控仍未运行。' : '演示：状态已刷新，显示的是示例数据。'); icons();
     }, 850);
   }
   el('refresh').addEventListener('click',refresh); el('detail-refresh').addEventListener('click',refresh);
-  el('start-service').addEventListener('click', () => { state.scenario = 'healthy'; renderState(); renderChannels(); toast('演示：后台服务已启动，等待下一次采样。'); persist(); });
+  el('start-monitor').addEventListener('click', () => { state.scenario = 'healthy'; renderState(); renderChannels(); toast('演示：监控已启动，等待下一次采样。'); persist(); });
   el('save-settings').addEventListener('click', () => {
     const grace = Number(el('grace').value); if (!Number.isInteger(grace) || grace < 1 || grace > 60) { toast('额外等待时间请输入 1 到 60 的整数。'); return; }
     state.interval = el('interval').value; state.grace = grace; state.force = el('force').checked;
-    renderState(); toast(state.scenario === 'offline' ? '演示：设置已保存，启动后台后生效。' : '演示：设置已保存并应用。'); persist();
+    renderState(); toast(state.scenario === 'offline' ? '演示：设置已保存，启动监控后生效。' : '演示：设置已保存并应用。'); persist();
   });
   root.addEventListener('keydown', event => {
     if (recordingShortcut) { recordShortcut(event); return; }

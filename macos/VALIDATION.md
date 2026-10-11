@@ -161,3 +161,99 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - 升级后 GUI 与 watcher 的 `proc_pidpath` 均有效；安装后的严格签名检查通过，CLI 回读 `SleepGuard 0.4.2 (4002)`。配置 SHA-256、暂停时间、watcher 运行状态和服务安装状态与升级前一致；原有 43 条 SQLite 事件按相同序列化方式逐条哈希回读一致。
 
 已完成 Apple Silicon 本机真实 `0.4.1 → 0.4.2` 下载、校验、安装、退出旧进程、自动重启及 Go watcher 状态恢复。Intel 的结果覆盖 CI 打包与签名校验，尚未在 Intel 硬件上运行升级；当前包仍为 ad-hoc 签名，未做 Apple 公证。
+
+
+## 登录启动与后台注销修复（2026-10-11，工作区修复构建）
+
+以下保留第一轮修复的验收记录；其中会话级 LaunchAgent 和真实临时登录项测试已由下一节的单应用实现及 fake 测试替换。
+
+### 原因与行为
+
+- 09:33 系统日志确认旧 `io.sleepguard.agent` 原生后台注册在登录时启动主可执行文件，被 AMFI 以 ad-hoc 签名启动约束拒绝。09:35 崩溃栈落在 `BackgroundAgent.stop()` 的注销完成回调；系统在默认后台队列调用继承了 MainActor 的闭包，触发 Swift executor 断言。
+- 完成回调改为显式 nonisolated / Sendable。设置页新增“登录时自动启动”，直接使用 `SMAppService.mainApp` 并回读系统状态，显示等待授权和错误；开关即时生效。
+- GUI 监控通过 `service start --session-only` 加载临时 LaunchAgent，不留永久后台自启文件。关闭登录开关不停止当前监控；退出停止监控但保留登录项。CLI 默认 install/start 仍保持持久服务语义。
+- 启动时迁移旧后台注册，保留监控原运行/停止状态；以设置中的主应用登录项为下次登录启动依据，不从旧隐式后台注册自动开启新开关。登录 Apple Event 在应用完成启动回调中同步捕获，只由菜单入口启动模型；管理窗口不再抢先用默认参数启动。
+
+### 已验证
+
+- `make test check check-ui GO=/Users/bennieliu/sdk/go1.27.0/bin/go` 通过。覆盖后台线程成功/失败注销回调、原始错误传递和 MainActor 恢复；Go 隔离测试覆盖会话服务迁移、临时文件清理、加载失败和 CLI 默认持久化。
+- 独立 `APP_OUTPUT` 应用编译、`scripts/check-package.py` 和严格签名校验通过。
+- `scripts/check-login-item.py` 使用唯一临时 bundle ID 和生产控制器完成启用、独立进程回读、重复设置、重新 ad-hoc 签名、关闭及再次回读；退出后注销并删除临时应用。
+- `scripts/check-login-startup.py` 使用生产 GuardModel 和独立 mock CLI，9 个场景通过：普通打开、登录项关闭、登录启用、已有监控避免重复、有效更新保持停止、过期/损坏更新标记、关闭登录项保持监控、退出保留登录项。其后台操作是隔离 mock，不能当作真实后台启动证明。
+- 另用真实 Go 后台和独立配置完成会话级启停：watcher_running/service_installed 回读符合预期，未生成用户 LaunchAgents 永久 plist；用户配置与 SQLite 文件哈希保持一致。
+- 本机 `/Applications/SleepGuard.app` 在独立配置（通知与自动动作关闭）下，经原生设置页连续两轮“启动后台 → 停止后台”，均成功且无崩溃；退出确认正常结束应用。该操作包含实际 BackgroundAgent 与 Go 服务完整调用链。
+- 最终修复构建已替换到 `/Applications/SleepGuard.app`，从用户原配置正常打开并显示新设置；登录项开关与后台均保持关闭。用户配置与 SQLite 文件哈希回读一致；本次测试副本和临时数据已删除，LaunchServices 注册表仅剩这一个 SleepGuard 应用；这一检查没有覆盖 BTM 后台活动记录，遗漏见下方纠正。版本号仍为工作区 `0.4.2`，不代表同版本公开安装包已经更新。
+
+### 验收边界
+
+尚未执行真实注销登录或重启；已验证登录项注册、登录事件识别和启动路径，但不能将其写作真实开机验收通过。没有修改公开 Release、标签或安装包；代码尚未提交或发布。
+
+
+## 单应用后台收敛与测试记录纠正（2026-10-11）
+
+### 已确认的问题
+
+- 上一轮真实登录项测试留下了 `LoginAudit`、`LoginCheck`、`LoginStartupCheck` 三条 BTM 记录。它们虽然已经注销且测试文件已删除，系统“后台 App 活动”仍显示为允许。这些是测试污染，不是三个仍运行的后台。此前“测试项清理完成”的说法没有覆盖此系统界面，现予纠正。
+- 已在系统设置将三条测试项全部关闭，并回读开关为 off。macOS 公开接口没有提供按 bundle ID 删除 BTM 历史的方法；不能将停用写作历史记录已删除。没有全量重置 BTM 或改动其他应用的登录设置。
+
+### 当前实现
+
+- SleepGuard 主应用直接管理内置 Go `watch --exit-on-stdin-close` 子进程，不再通过临时或持久 LaunchAgent 启动 GUI 监控。唯一新注册入口是设置开关控制的 `SMAppService.mainApp`；旧 agent 代码只负责迁移清理。
+- 主应用保留 stdin 管道写端，退出时关闭；意外崩溃也由系统关闭该描述符，Go watcher 取消 context 并释放进程锁和数据库。关闭管理窗口不退出主应用，因此继续监控；异常子进程退出按原 30 秒间隔重启。
+- 移除上一轮新增的 `service start --session-only` 路径，独立 CLI 原服务语义不变。
+- 登录项测试改用构造注入的 fake 系统服务，不再创建临时 UUID 登录注册；mock 验证与真实系统登记严格区分。
+
+### 已验证
+
+- `make test check check-ui`、独立目录 `make app`、`scripts/check-package.py` 和安装后的严格签名校验通过。Go 测试覆盖 stdin EOF 中断采集/长间隔、释放锁、保留配置和历史，以及默认 CLI 不读取 stdin。
+- `scripts/check-app-monitor.py` 使用无 App bundle 的私有父子进程，验证启动幂等、停止/重启、异常重试、等待重试时停止、正常退出清除监控请求，以及父进程 SIGKILL 后子进程收到 EOF 并退出。常规检查不访问 BTM；本机显式比对的 63 个 BTM Identifier 前后相同，没有新增记录。
+- 更新准备改为始终取消监控和重试任务，恢复标记包含等待重试中的监控请求。生产 GuardModel 的独立 mock 检查共 11 个场景通过，包括更新前后台已停/运行中及失败恢复；这些不能作为真实重新登录的证据。
+- 安装到 `/Applications/SleepGuard.app` 后，使用通知与自动动作关闭的独立配置，从原生设置页启动真实 Go 监控：GUI `17603` 直接持有子进程 `17660`；`watcher_running=true`、`service_installed=false`。`io.sleepguard.agent` / `io.sleepguard.app.agent` 均未加载，也没有旧 LaunchAgents plist。
+- 关闭管理窗口后监控继续运行；重新打开后可停止、再次启动，并在退出确认后结束 GUI 和子进程、释放 watcher 锁。安装后完整启停/退出前后的 BTM 标识字段集合相同，新增 0 条。
+- 已恢复使用用户原配置，后台和登录启动开关保留关闭状态；配置与 SQLite 文件 SHA-256 前后一致。系统设置回读 `LoginAudit`、`LoginCheck`、`LoginStartupCheck` 都是 off，历史名称仍显示，不能声称已从 BTM 历史删除。
+- 本次安装备份、测试 App 副本和隔离数据均已删除；另清理了 11 条指向已不存在升级测试 App/Updater 的 LaunchServices 登记。回读仅剩 `/Applications/SleepGuard.app` 与其内置 Sparkle Updater，没有开发副本。
+
+本机已安装工作区修复构建，版本仍为 `0.4.2`；公开安装包和标签未改动。尚未执行真实注销登录或重启验收。
+
+## 测试记录清理与操作失误（2026-10-11 10:04）
+
+- 用户要求彻底删除三个测试后台项。调查时误将 `sfltool resetbtm --help` 当作帮助查询；当前系统忽略不支持的 `--help` 后执行了全量重置。系统日志和 v18 数据库文件确认登录项及后台记录均被重置。这不是定向删除，属于操作失误，已向用户说明。
+- 已通过系统设置恢复重置前的五个“登录时打开”应用：CC Switch、OneClip、PixPin、Scroll Reverser、uTools，并回读确认。未能确认其他后台权限已完整恢复；用户说明正在自行调整登录项后，停止了对登录项和后台开关的写操作。不能声称此次清理没有影响其他应用的设置。
+- 只读检查全部当前 `BackgroundItems-v18*.btm`：三个测试 bundle ID / 名称均为零条。另注销了两条指向已删除 `LoginStartupCheck.app` 的 LaunchServices 缓存，回读三种测试 App 路径均不存在。
+- `check-login-startup.py` 增加退出清理：在删除临时 App 前按准确路径注销 LaunchServices，包括测试失败路径；仍使用 fake 登录服务，不注册真实登录项。
+- 后续恢复尚未完成：已保存重置前 26 组正常后台项的开关状态、当前数据库副本和 18 份服务配置的只读清单到本机忽略目录 `work/btm-recovery.noindex/`；其中 15 个服务仍已加载。`check-background.py` 用于只读核对记录和开关，不能自动覆盖用户随后调整的状态。用户选择保存工作后自行重启，待重启后继续逐项核对和恢复后台登记，不能将五个登录应用恢复视为整组后台权限恢复。
+
+## 重启后的恢复核对（2026-10-11）
+
+- 系统启动时间为 `10:12:14`。18 份原有 LaunchAgents / LaunchDaemons 文件的 SHA-256 全部与重启前一致；原先加载的 15 个服务均重新加载，MySQL、Redis、Clash、iStat 和 UU 远程等原运行服务仍为 running。三个原来未加载的 Google 服务仍未加载。
+- 首次完成重启核对时，26 组基线中已有 23 组重新出现在 BTM：22 组开关与原来一致，Apifox 按用户本轮明确选择保留关闭。库乐队、GoogleUpdater、WPS 曾以开启状态重新出现，已按用户确认逐项恢复关闭，并通过系统设置和 BTM 双重回读。
+- DataGrip、iTerm、Visual Studio Code 的历史后台活动记录尚未重新出现，不能称整组恢复完成。重新打开应用不保证立即重建历史后台记录；未将这些应用添加为登录启动项。iTerm 的原生控制被工具安全限制拒绝，需要用户自行打开；DataGrip 的退出确认界面保留给用户处理。
+- 三个测试项的名称及标识未重新出现。SleepGuard 仅有主应用 `2.io.sleepguard.app` 一项，两个旧 LaunchAgent 均未加载；GUI `5468` 直接管理 Go 子进程 `5523`。用户重新启用了主应用登录项；日志显示登记发生于本次登录之后的 `10:13:38`，因此此次重启不能作为该登录开关已自动启动成功的证据。
+- 本次状态和服务清单保存于本机忽略目录 `work/btm-recovery.noindex/after-reboot-comparison.json`、`after-reboot-service-inventory.json`，保留用于后续补全。未运行任何全量 BTM 重置；登录测试清理脚本的 Python 语法检查通过，未再次运行会启动测试 App 的验收。
+- 用户指出核对时主动打开 Apifox 和 DataGrip 打断了使用；已说明还打开过 VS Code，并停止主动启动其他应用。后续只读确认 DataGrip、iTerm、VS Code 都未运行，应用文件仍存在，包内及系统/用户启动目录均没有归属于它们的独立 LaunchAgent、LaunchDaemon 或 LoginItem；缺失的三条历史记录仍待应用实际后台活动重新登记，其中 DataGrip 原为禁止后台运行，另外两项原为允许。
+- 后续发现两条更早的 LaunchServices 测试缓存，分别指向已不存在的 `work/menu-sizing-probe/MenuSizingProbe.app` 与 `work/agent-probe/Probe.app`；确认没有相关进程后按准确路径注销，回读均已消失。聚焦仅返回 `/Applications/SleepGuard.app`，相关主应用登记只剩正式 SleepGuard。
+- 最新系统设置回读：UU 远程后台已关闭，两个 UU 服务均未加载；SleepGuard 已从“登录时打开”列表移除，当前监控仍在运行。保留这些随后变化，不覆盖为早先状态。18 份启动配置文件仍全部一致，当前加载 13 项。最新差异及服务状态分别写入 `after-reboot-comparison.json` 和 `latest-service-inventory.json`；不能以首次核对的 15 项服务或 SleepGuard 登录启用状态代表当前设置。
+
+
+## 监控可靠性四项修复（2026-10-11，工作区未发布）
+
+- 在已有 AppMonitor 子进程与登录启动改动上修复，不替换既有修改。桌面端继续直接管理 Go 子进程；该阶段暂时保留旧 LaunchAgent 清理和独立 CLI service 入口，后续按用户要求删除，见下节。该阶段未注册、卸载或修改本机登录项、LaunchAgent 和现有监控状态。
+- 自动处理在耗时复采集之后检查当前规则、暂停和控制版本，并在最终发信号阶段与暂停、恢复、黑屏开始/结束共用 `control.lock`。新增回归分别覆盖 SIGTERM / SIGKILL 复采集期间的四类控制操作、配置撤销、上下文取消；信号均为 mock。跨 Store 句柄检查互斥、锁等待取消和已确认暂停的可见性。
+- 复核失败不再提前记录 ActionAttempted；未发送信号的事件在至少一分钟或两个采样间隔后重试，等待期间仍可通知。测试覆盖持久化重试期限、新 Runner 接管、后续成功及已尝试 SIGTERM 后的失败不重复发信号。
+- 规则/设置保存将最新页面字段与编辑起点比较，再通过原有 revision 检查保存。Swift 检查覆盖外部新增规则、总开关修改、四类设置冲突、跨页面变更保留、显式重新加载后的保存。冲突保留草稿，撤销使用最近读到的持久化配置；保存期间的过时状态刷新被丢弃。
+- Go watcher 独立写入启动、尝试、成功与错误记录；UI 实时采集不更新这些时间。首轮超过 30 秒无完成、后续超过 max(30 秒, 3 个采样间隔) 无完成时标记超时。Go 测试覆盖首次卡住、后续卡住、失败记录、重启保留错误和原成功时间但重新等待首次完成、正常退出不覆盖真实错误。
+- 真实 Go CLI 隔离验证通过：默认关闭通知和自动操作，以一秒间隔启动项目自有临时子进程；健康后仅 SIGSTOP 此子进程并等待 31 秒。`ui status` 仍返回新的界面快照及 watcher_running=true，但 watcher_health.status=stale，last_success 不变。SIGCONT 后恢复 healthy；关闭 stdin 后正常退出，回读 stopped。临时配置、数据库和进程均已清理，没有发送通知或结束用户应用。
+- `make test check check-ui` 通过，使用现有 Go 1.27.0，包含 race、vet、Swift 配置冲突检查及既有子进程生命周期检查。独立 APP_OUTPUT 下的 arm64 `make app`、严格签名与 `scripts/check-package.py` 通过；临时测试包已清理。
+
+本轮未安装到 /Applications，未提交或推送，版本仍为 0.4.2。结果覆盖自动化检查、真实隔离 CLI 和完整 App 构建；没有新增真实 GUI 交互、登录重启或公开跨版本升级验收。
+
+
+## 移除旧服务与界面同步（2026-10-11，工作区未发布）
+
+- 按用户要求删除旧 LaunchAgent 注册/迁移逻辑、两份 plist、SleepGuardMonitor helper、`--run-monitor`、CLI `service` 命令和 `service_installed` 状态字段，不保留兼容入口。所有桌面启动路径统一调用 AppMonitor，包括指定外部 backend 的隔离测试。
+- 菜单、设置页、状态提示、退出确认及更新恢复文案统一使用“监控”；HTML 设计原型同步清理。监控仍可启动/停止，关闭窗口继续运行，退出主应用停止子进程。“登录时自动启动”继续单独管理主应用登录项。
+- 本机精确查询 `io.sleepguard.agent` 和 `io.sleepguard.app.agent`：launchctl 均返回未加载，两份用户 LaunchAgents plist 均不存在。确认旧专用设置文件结构后删除 `~/Library/Application Support/sleepguard/agent-settings.json`；未删除现有配置、规则、历史或运行日志。只读 `sfltool dumpbtm` 超时，未据此宣称系统缓存无旧记录，未执行注册表重置或更改任何登录项。
+- `make test check check-ui` 通过（现有 Go 1.27.0，race、vet、Swift 检查与子进程生命周期检查）。独立 APP_OUTPUT 的 arm64 `make app`、严格签名及 `check-package.py` 通过；包内没有 LaunchAgents 和 SleepGuardMonitor，CLI 对 `service` 返回 unknown command。
+- `check-login-startup.py` 的 11 个场景全部通过：手动启动、登录禁用/启用、已运行去重、更新恢复记录三种状态、关闭登录开关保留监控、退出保留登录设置、更新前停止与失败后恢复。使用生产 GuardModel/GoBackend/AppMonitor、fake 登录注册表和实际通过 stdin 管道启停的私有 mock 子进程；没有调用旧 service 入口，没有注册或删除系统登录项。临时 App 的 LaunchServices 记录按准确路径清理，临时进程与文件已清理。
+
+以上为工作区构建和隔离自动化验证；未覆盖本轮真实界面交互、重新登录或发布升级，未替换 /Applications 中的应用，未提交或推送。

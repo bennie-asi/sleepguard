@@ -309,7 +309,7 @@ import Sparkle
 
     private func prepareInstallation() async throws {
         guard !installPrepared else { return }
-        guard let model else { throw BackendFailure(message: "无法确认后台状态，请重试更新。") }
+        guard let model else { throw BackendFailure(message: "无法确认监控状态，请重试更新。") }
         status = "正在准备安装更新…"
         try await model.prepareForUpdate()
         installPrepared = true

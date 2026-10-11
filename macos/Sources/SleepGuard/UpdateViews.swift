@@ -42,7 +42,7 @@ struct UpdatePage: View {
                         .disabled(!updater.ready || updater.working || updater.cancellingScheduledInstallation)
                     if updater.working && updater.canCancel { Button("取消更新") { updater.cancel() } }
                 }
-                Text("点击后自动下载、校验、安装并重新打开；后台按更新前的状态恢复。")
+                Text("点击后自动下载、校验、安装并重新打开；监控按更新前的状态恢复。")
                     .font(.caption).foregroundStyle(.secondary)
                 if let lastCheck = updater.lastCheck {
                     Text("上次检查：\(lastCheck.formatted(date: .abbreviated, time: .shortened))")

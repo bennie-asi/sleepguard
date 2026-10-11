@@ -133,6 +133,7 @@ struct Incident: Codable, Identifiable, Sendable {
     var qualifiedAt: String
     var snoozedUntil: String
     var actionAttempted: Bool
+    var actionRetryAt: String?
     var actionResult: String?
     var id: String { key }
 }
@@ -142,7 +143,7 @@ struct GuardStatus: Codable, Sendable {
     var incidents: [Incident]
     var pausedUntil: String
     var watcherRunning: Bool
-    var serviceInstalled: Bool
+    var watcherHealth: WatcherHealth?
     var configPath: String
     var stateDir: String
     var pausedDate: Date? { ClockText.date(pausedUntil) }

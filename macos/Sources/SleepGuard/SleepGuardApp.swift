@@ -17,7 +17,6 @@ import Darwin
             NSApplication.shared.run()
             return
         }
-        if CommandLine.arguments.dropFirst().first == "--run-monitor" { exit(MonitorHelper.run(arguments: Array(CommandLine.arguments.dropFirst(2)))) }
         if CommandLine.arguments.contains("--deliver-notification") { exit(NotificationHelper.deliver()) }
         if CommandLine.arguments.contains("--notification-status") { exit(NotificationHelper.status()) }
         if CommandLine.arguments.contains("--send-keychain-telegram") { exit(TelegramHelper.send()) }
@@ -54,7 +53,8 @@ struct MenuIcon: View {
             }
             .task {
                 delegate.model = model
-                await model.start()
+                let launchedAtLogin = await delegate.loginLaunch()
+                await model.start(launchedAtLogin: launchedAtLogin)
                 if CommandLine.arguments.contains("--show-window") {
                     openWindow(id: "management")
                     NSApp.activate(ignoringOtherApps: true)
@@ -64,8 +64,18 @@ struct MenuIcon: View {
 }
 @MainActor final class GuardAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var model: GuardModel?
+    private var launchedAtLogin: Bool?
+    private var launchWaiters: [CheckedContinuation<Bool, Never>] = []
+    func loginLaunch() async -> Bool {
+        if let launchedAtLogin { return launchedAtLogin }
+        return await withCheckedContinuation { launchWaiters.append($0) }
+    }
     private var terminationPending = false
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let login = LoginLaunch.isLoginItem(NSAppleEventManager.shared().currentAppleEvent)
+        launchedAtLogin = login
+        launchWaiters.forEach { $0.resume(returning: login) }
+        launchWaiters.removeAll()
         NSApp.setActivationPolicy(.accessory)
         if let icon = Bundle.main.url(forResource: "SleepGuard", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) {
             NSApp.applicationIconImage = icon
@@ -89,8 +99,8 @@ struct MenuIcon: View {
         guard !terminationPending else { return .terminateLater }
         let alert = NSAlert()
         alert.messageText = "退出 SleepGuard？"
-        alert.informativeText = "将同时停止后台监控。配置和历史会保留。" + ((model?.dirtyRules == true || model?.dirtySettings == true) ? "\n未保存的更改将丢失。" : "")
-        alert.addButton(withTitle: "退出并停止后台")
+        alert.informativeText = "将同时停止监控。配置和历史会保留。" + ((model?.dirtyRules == true || model?.dirtySettings == true) ? "\n未保存的更改将丢失。" : "")
+        alert.addButton(withTitle: "退出并停止监控")
         alert.addButton(withTitle: "取消").keyEquivalent = "\u{1b}"
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }

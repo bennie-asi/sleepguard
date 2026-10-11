@@ -1,11 +1,15 @@
-SleepGuard 0.4.2 fixes an installation failure when a running application's files were replaced during development.
+SleepGuard 0.4.3 improves monitoring reliability and removes the old background service.
 
-- “Update Now” automatically restarts a process whose executable identity is no longer valid, then continues the signed update.
-- Normal updates download, verify, quit the old application, install and reopen the new version. The background monitor returns to its previous running or stopped state.
-- Failures identify the download, validation or installation stage and retain the underlying reason.
-- Local builds refuse to overwrite an application or bundled monitor that is still running. `APP_OUTPUT` allows a separate development bundle.
-- Apple Silicon and Intel DMGs each have a checksum and a Sparkle-signed update feed.
+- The menu-bar app now owns the Go monitor as a child process. Closing the window keeps monitoring active; quitting or an app crash closes the child. Abnormal child exits are retried.
+- “Start at login” controls the main app separately. Disabling it keeps the current monitor running, and quitting preserves the next-login preference.
+- Old LaunchAgent definitions, the monitor helper, migration entry points and CLI `service` commands are removed. Command-line monitoring remains available through foreground `sleepguard watch`. UI controls consistently refer to monitoring.
+- Pause, resume and blackout changes are checked again immediately before automatic termination, so an acknowledged control change prevents a previously authorized signal.
+- Failed preflight checks keep notifications active and retry later. Once a termination signal has been attempted, it is not repeated for the same incident.
+- Saving rules or settings detects changes made elsewhere and preserves the unsaved draft instead of overwriting newer data.
+- Monitor health shows the worker's actual sampling progress, errors and overdue samples separately from UI refreshes.
 
-These builds use ad-hoc app signing and are not Apple-notarized. Sparkle verifies the update feed and downloaded package with the existing Ed25519 key. Native integration checks cover installation, relaunch, replaced executables, running/stopped background state, and rejection of a tampered package on Apple Silicon. Intel native interaction, automatic installation on exit and its cancellation remain separate acceptance items.
+Existing rules, configuration and history are retained. Legacy standalone service users must stop their old service before using the new monitor; this release does not include an automatic migration entry point.
 
-The original sleep monitoring, rules, notifications and screen controls remain available.
+Validation includes Go race/vet checks, Swift checks, child-process lifecycle tests, 11 isolated login/update-recovery scenarios, an arm64 app build and strict package verification. Real login/reboot and a public 0.4.2 to 0.4.3 upgrade remain separate acceptance items.
+
+Apple Silicon and Intel installers use ad-hoc app signing without Apple notarization. Sparkle verifies the update feed and downloaded package with the existing Ed25519 key.

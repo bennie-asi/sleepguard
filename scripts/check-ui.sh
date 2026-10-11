@@ -12,6 +12,17 @@ xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx
 "$check_dir/monitoring-check"
 xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
   -module-cache-path "$project_dir/work/swift-cache" \
+  -o "$check_dir/config-edits-check" \
+  "$project_dir/macos/Sources/SleepGuard/Models.swift" \
+  "$project_dir/macos/Sources/SleepGuard/ConfigEdits.swift" \
+  "$project_dir/macos/Sources/SleepGuard/WatcherHealth.swift" \
+  "$project_dir/macos/Sources/SleepGuard/DurationInput.swift" \
+  "$project_dir/macos/Sources/SleepGuard/ViewState.swift" \
+  "$project_dir/macos/Tests/CheckSupport.swift" \
+  "$project_dir/macos/Tests/ConfigEditsChecks.swift"
+"$check_dir/config-edits-check"
+xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
+  -module-cache-path "$project_dir/work/swift-cache" \
   -o "$check_dir/duration-check" \
   "$project_dir/macos/Sources/SleepGuard/ViewState.swift" \
   "$project_dir/macos/Sources/SleepGuard/DurationInput.swift" \
@@ -32,6 +43,16 @@ xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx
   "$project_dir/macos/Tests/BackendCommandChecks.swift" \
   "$project_dir/macos/Tests/CheckSupport.swift"
 "$check_dir/command-check"
+xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
+  -module-cache-path "$project_dir/work/swift-cache" \
+  -o "$check_dir/login-launch-check" \
+  "$project_dir/macos/Sources/SleepGuard/LoginItem.swift" \
+  "$project_dir/macos/Sources/SleepGuard/BackendCommand.swift" \
+  "$project_dir/macos/Tests/LoginItemServiceFixture.swift" \
+  "$project_dir/macos/Tests/LoginItemChecks.swift" \
+  "$project_dir/macos/Tests/CheckSupport.swift"
+"$check_dir/login-launch-check"
+python3 "$project_dir/scripts/check-app-monitor.py"
 python3 "$project_dir/scripts/check-build-in-use.py"
 sparkle_dir="$("$project_dir/scripts/fetch-sparkle.sh")"
 xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"syscall"
 	"time"
 
@@ -125,17 +124,15 @@ func (r *Runner) Tick(ctx context.Context) error {
 					return e
 				}
 			case engine.Terminate:
-				i.ActionAttempted = true
-				if e = r.Store.Save(i); e != nil {
-					return e
-				}
-				if e = r.Store.Event(s.At, i.Key, "action_attempt", "准备重新检查并发送 SIGTERM"); e != nil {
-					return e
-				}
-				err := r.terminate(ctx, i)
+				err := r.terminate(ctx, &i)
 				i.ActionResult = "已发送结束信号；是否解除请求由后续采样确认"
 				if err != nil {
 					i.ActionResult = err.Error()
+					if !i.ActionAttempted {
+						// Leave a notification opportunity between retries. No signal was
+						// attempted, so a transient preflight failure must not end the event.
+						i.ActionRetryAt = s.At.Add(max(time.Minute, 2*config.Duration(r.Config.Monitor.Interval)))
+					}
 				}
 				if e = r.Store.Save(i); e != nil {
 					return e
@@ -163,6 +160,37 @@ func (r *Runner) Tick(ctx context.Context) error {
 }
 
 func (r *Runner) guard(ctx context.Context, i model.Incident) error {
+	s, e := r.Collector.Collect(ctx)
+	if e != nil {
+		return fmt.Errorf("处理取消：重新采集失败")
+	}
+	if s.BootID != i.BootID || !s.WakeAt.Equal(i.WakeAt) {
+		return fmt.Errorf("处理取消：发生睡眠或重启")
+	}
+	if e = r.authorize(ctx, i); e != nil {
+		return e
+	}
+	a := engine.Assess(r.Config, s)
+	if !a.Eligible {
+		return fmt.Errorf("处理取消：已不满足休眠超时条件")
+	}
+	for _, x := range a.Candidates {
+		if x.Key == i.Key && engine.Processing(x.Policy) && x.Target != nil && !x.Target.Protected {
+			if i.RuleVersion != "" && s.At.Before(engine.Deadline(r.Config, i)) {
+				return fmt.Errorf("处理取消：等待时间尚未结束")
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("处理取消：目标已退出、身份变化或请求已解除")
+}
+
+// Run again under the control lock immediately before a signal, after all
+// potentially slow collection. Configuration changes during collection apply too.
+func (r *Runner) authorize(ctx context.Context, i model.Incident) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if r.Reload != nil {
 		current, e := r.Reload()
 		if e != nil {
@@ -187,50 +215,60 @@ func (r *Runner) guard(ctx context.Context, i model.Incident) error {
 	if version != i.ResetVersion {
 		return fmt.Errorf("处理取消：监控已重新恢复，需要重新累计异常")
 	}
-	s, e := r.Collector.Collect(ctx)
-	if e != nil {
-		return fmt.Errorf("处理取消：重新采集失败")
+	policy := engine.Policy(r.Config, i.Target)
+	if !engine.Processing(policy) || (i.RuleVersion != "" && i.RuleVersion != engine.RuleVersion(r.Config, policy)) {
+		return fmt.Errorf("处理取消：规则已变化，需要重新累计异常")
 	}
-	if s.BootID != i.BootID || !s.WakeAt.Equal(i.WakeAt) {
-		return fmt.Errorf("处理取消：发生睡眠或重启")
-	}
-	a := engine.Assess(r.Config, s)
-	if !a.Eligible {
-		return fmt.Errorf("处理取消：已不满足休眠超时条件")
-	}
-	for _, x := range a.Candidates {
-		if x.Key == i.Key && engine.Processing(x.Policy) && x.Target != nil && !x.Target.Protected {
-			if i.RuleVersion != "" && (i.RuleVersion != engine.RuleVersion(r.Config, x.Policy) || s.At.Before(engine.Deadline(r.Config, i))) {
-				return fmt.Errorf("处理取消：规则变化或等待时间尚未结束")
-			}
-			inspect := r.Inspect
-			if inspect == nil {
-				inspect = platform.InspectProcess
-			}
-			p, e := inspect(ctx, x.Target.PID)
-			if e == nil && !p.Protected && p.Identity(s.BootID) == i.Key && engine.Processing(engine.Policy(r.Config, &p)) {
-				return nil
-			}
-		}
-	}
-	return fmt.Errorf("处理取消：目标已退出、身份变化或请求已解除")
+	return nil
 }
-func (r *Runner) terminate(ctx context.Context, i model.Incident) error {
-	if e := r.guard(ctx, i); e != nil {
+func (r *Runner) sendGuarded(ctx context.Context, i *model.Incident, sig syscall.Signal) error {
+	if e := r.guard(ctx, *i); e != nil {
 		return e
 	}
-	send := r.Signal
-	if send == nil {
-		send = func(pid int32, sig syscall.Signal) error {
-			p, e := os.FindProcess(int(pid))
-			if e != nil {
+	return r.Store.WithControlLock(ctx, func() error {
+		if e := r.authorize(ctx, *i); e != nil {
+			return e
+		}
+		if sig == syscall.SIGKILL && !r.Config.Actions.AllowSIGKILL {
+			return fmt.Errorf("处理取消：强制结束已关闭")
+		}
+		inspect := r.Inspect
+		if inspect == nil {
+			inspect = platform.InspectProcess
+		}
+		p, e := inspect(ctx, i.Target.PID)
+		if e != nil || p.Protected || p.Identity(i.BootID) != i.Key || !engine.Processing(engine.Policy(r.Config, &p)) {
+			return fmt.Errorf("处理取消：目标已退出或身份变化")
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if sig == syscall.SIGTERM {
+			// Persist intent before the syscall: a crash after delivery must not
+			// cause another signal on restart. Preflight errors never reach here.
+			intent := *i
+			intent.ActionAttempted = true
+			if e = r.Store.Save(intent); e != nil {
 				return e
 			}
-			return p.Signal(sig)
+			if e = r.Store.Event(time.Now(), i.Key, "action_attempt", "复核通过，准备发送 SIGTERM"); e != nil {
+				return e
+			}
+			i.ActionAttempted = true
 		}
-	}
-	if e := send(i.Target.PID, syscall.SIGTERM); e != nil {
-		return fmt.Errorf("SIGTERM 失败: %w", e)
+		send := r.Signal
+		if send == nil {
+			send = func(pid int32, sig syscall.Signal) error { return syscall.Kill(int(pid), sig) }
+		}
+		if e = send(i.Target.PID, sig); e != nil {
+			return fmt.Errorf("%s 失败: %w", sig, e)
+		}
+		return nil
+	})
+}
+func (r *Runner) terminate(ctx context.Context, i *model.Incident) error {
+	if e := r.sendGuarded(ctx, i, syscall.SIGTERM); e != nil {
+		return e
 	}
 	if !r.Config.Actions.AllowSIGKILL {
 		return nil
@@ -242,14 +280,5 @@ func (r *Runner) terminate(ctx context.Context, i model.Incident) error {
 		return ctx.Err()
 	case <-timer.C:
 	}
-	if e := r.guard(ctx, i); e != nil {
-		return e
-	}
-	if !r.Config.Actions.AllowSIGKILL {
-		return fmt.Errorf("处理取消：强制结束已关闭")
-	}
-	if e := send(i.Target.PID, syscall.SIGKILL); e != nil {
-		return fmt.Errorf("SIGKILL 失败: %w", e)
-	}
-	return nil
+	return r.sendGuarded(ctx, i, syscall.SIGKILL)
 }

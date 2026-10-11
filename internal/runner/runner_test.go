@@ -92,7 +92,7 @@ func TestGuardRejectsProtectedAndChangedWake(t *testing.T) {
 		t.Fatal("new boot accepted")
 	}
 	i.Target.Protected = true
-	if e = r.terminate(context.Background(), i); e == nil {
+	if e = r.terminate(context.Background(), &i); e == nil {
 		t.Fatal("protected process accepted")
 	}
 }
@@ -120,16 +120,16 @@ func TestSignalRevalidatesIdentityAndWake(t *testing.T) {
 		return nil
 	}}
 	i := model.Incident{Key: p.Identity("b"), BootID: "b", WakeAt: s.WakeAt, Target: &p}
-	if e = r.terminate(context.Background(), i); e != nil || signals != 1 {
+	if e = r.terminate(context.Background(), &i); e != nil || signals != 1 {
 		t.Fatal("valid action rejected", e)
 	}
 	observed.StartedMS++
-	if e = r.terminate(context.Background(), i); e == nil || signals != 1 {
+	if e = r.terminate(context.Background(), &i); e == nil || signals != 1 {
 		t.Fatal("PID reuse accepted", e)
 	}
 	observed = p
 	co.s.IdleSeconds = 0
-	if e = r.terminate(context.Background(), i); e == nil || signals != 1 {
+	if e = r.terminate(context.Background(), &i); e == nil || signals != 1 {
 		t.Fatal("user activity ignored", e)
 	}
 }

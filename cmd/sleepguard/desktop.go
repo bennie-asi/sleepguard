@@ -17,7 +17,6 @@ import (
 	"github.com/bennie-asi/sleepguard/internal/model"
 	"github.com/bennie-asi/sleepguard/internal/notification"
 	"github.com/bennie-asi/sleepguard/internal/platform"
-	"github.com/bennie-asi/sleepguard/internal/service"
 	"github.com/bennie-asi/sleepguard/internal/store"
 	"github.com/shirou/gopsutil/v4/process"
 	"github.com/spf13/cobra"
@@ -123,6 +122,7 @@ func addDesktopCommands(root *cobra.Command, path, dir *string) {
 			return e
 		}
 		incidents := []model.Incident{}
+		var health model.WatcherHealth
 		var until time.Time
 		if _, e = os.Stat(filepath.Join(*dir, "state.db")); e == nil {
 			db, e := store.Open(*dir)
@@ -130,6 +130,10 @@ func addDesktopCommands(root *cobra.Command, path, dir *string) {
 				return e
 			}
 			defer db.Close()
+			health, e = db.WatcherHealth()
+			if e != nil {
+				return e
+			}
 			incidents, e = db.Active()
 			if e != nil {
 				return e
@@ -139,7 +143,9 @@ func addDesktopCommands(root *cobra.Command, path, dir *string) {
 				return e
 			}
 		}
-		return output(map[string]any{"snapshot": s, "assessment": engine.Assess(c, s), "incidents": incidents, "paused_until": until, "watcher_running": watcherRunning(*dir), "service_installed": service.Installed(), "config_path": *path, "state_dir": *dir})
+		running := watcherRunning(*dir)
+		health.Status = health.State(running, time.Now())
+		return output(map[string]any{"snapshot": s, "assessment": engine.Assess(c, s), "incidents": incidents, "paused_until": until, "watcher_running": running, "watcher_health": health, "config_path": *path, "state_dir": *dir})
 	}})
 	ui.AddCommand(&cobra.Command{Use: "processes", RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx, cancel := context.WithTimeout(cmd.Context(), 20*time.Second)
@@ -195,15 +201,4 @@ func addDesktopCommands(root *cobra.Command, path, dir *string) {
 	test.Flags().StringVar(&channelID, "channel", "system", "要测试的渠道 ID")
 	ui.AddCommand(test)
 	root.AddCommand(ui)
-	for _, cmd := range root.Commands() {
-		if cmd.Name() == "service" {
-			cmd.AddCommand(&cobra.Command{Use: "start", RunE: func(cmd *cobra.Command, _ []string) error {
-				if _, e := config.Load(*path); e != nil {
-					return e
-				}
-				return service.Start(*path, *dir)
-			}})
-			cmd.AddCommand(&cobra.Command{Use: "stop", RunE: func(*cobra.Command, []string) error { return service.Stop() }})
-		}
-	}
 }

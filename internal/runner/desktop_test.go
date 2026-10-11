@@ -115,18 +115,18 @@ func TestProcessingWithoutNotificationsAndConfigRevocation(t *testing.T) {
 		t.Fatal("wrong process-only state", i)
 	}
 	r.Reload = func() (config.Config, error) { current := c; current.Actions.Enabled = false; return current, nil }
-	if e := r.terminate(context.Background(), *i); e == nil || signals != 1 {
+	if e := r.terminate(context.Background(), i); e == nil || signals != 1 {
 		t.Fatal("disabled action sent a signal")
 	}
 	r.Reload = func() (config.Config, error) { current := c; current.Actions.Wait = "1h"; return current, nil }
-	if e := r.terminate(context.Background(), *i); e == nil || signals != 1 {
+	if e := r.terminate(context.Background(), i); e == nil || signals != 1 {
 		t.Fatal("changed countdown sent a signal")
 	}
 	r.Reload = func() (config.Config, error) { return c, nil }
 	if e := db.Resume("*"); e != nil {
 		t.Fatal(e)
 	}
-	if e := r.terminate(context.Background(), *i); e == nil || signals != 1 {
+	if e := r.terminate(context.Background(), i); e == nil || signals != 1 {
 		t.Fatal("resume retained old action eligibility")
 	}
 	if engine.Decide(c, *i, "process", co.s.At) != engine.Wait {

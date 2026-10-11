@@ -125,7 +125,7 @@ func Decide(c config.Config, i model.Incident, policy string, now time.Time) Dec
 	if !i.Active || i.Samples < c.Monitor.ConsecutiveSamples || now.Before(i.SnoozedUntil) || i.ActionAttempted {
 		return Wait
 	}
-	if c.Actions.Enabled && Processing(policy) && i.Target != nil && !i.Target.Protected && !i.QualifiedAt.IsZero() && !now.Before(Deadline(c, i)) {
+	if c.Actions.Enabled && Processing(policy) && i.Target != nil && !i.Target.Protected && !i.QualifiedAt.IsZero() && !now.Before(Deadline(c, i)) && !now.Before(i.ActionRetryAt) {
 		return Terminate
 	}
 	if (policy == "notify" || policy == "terminate") && len(c.ActiveChannels()) > 0 && (i.LastAttempt.IsZero() || now.Sub(i.LastAttempt) >= config.Duration(c.Monitor.ReminderInterval)) {

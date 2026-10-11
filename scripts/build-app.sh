@@ -23,10 +23,8 @@ IFS=. read -r major minor patch <<< "$version"
 build_number="${BUILD_NUMBER:-$((major * 1000000 + minor * 1000 + patch))}"
 [[ "$build_number" =~ ^[0-9]+$ ]] && (( build_number > 0 )) || { echo 'BUILD_NUMBER must be positive integer' >&2; exit 1; }
 sparkle_dir="$("$project_dir/scripts/fetch-sparkle.sh")"
-mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/Frameworks" "$project_dir/work/swift-cache" "$app_dir/Contents/Library/LaunchAgents"
+mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/Frameworks" "$project_dir/work/swift-cache"
 ditto "$sparkle_dir/Sparkle.framework" "$app_dir/Contents/Frameworks/Sparkle.framework"
-cp "$project_dir/macos/io.sleepguard.agent.plist" "$app_dir/Contents/Library/LaunchAgents/io.sleepguard.agent.plist"
-cp "$project_dir/macos/io.sleepguard.app.agent.plist" "$app_dir/Contents/Library/LaunchAgents/io.sleepguard.app.agent.plist"
 cp "$project_dir/macos/Info.plist" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $version" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set CFBundleVersion $build_number" "$app_dir/Contents/Info.plist"
@@ -41,7 +39,6 @@ if [[ "$arch_name" == x86_64 ]]; then go_arch=amd64; fi
 export MACOSX_DEPLOYMENT_TARGET=13.0
 CGO_ENABLED=1 GOOS=darwin GOARCH="$go_arch" CC="clang -arch $arch_name" "${GO:-go}" build -trimpath -ldflags="-s -w -X main.appVersion=$version -X main.appBuild=$build_number" -o "$app_dir/Contents/Resources/sleepguard" ./cmd/sleepguard
 xcrun swiftc -swift-version 6 -parse-as-library -O -target "$arch_name-apple-macosx13.0" -module-cache-path "$project_dir/work/swift-cache" -F "$app_dir/Contents/Frameworks" -framework Sparkle -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' -o "$app_dir/Contents/MacOS/SleepGuard" macos/Sources/SleepGuard/*.swift
-xcrun swiftc -swift-version 6 -parse-as-library -O -target "$arch_name-apple-macosx13.0" -module-cache-path "$project_dir/work/swift-cache" -o "$app_dir/Contents/MacOS/SleepGuardMonitor" macos/Sources/SleepGuard/MonitorHelper.swift macos/Sources/Monitor/main.swift
 identity="${SIGNING_IDENTITY:--}"
 sparkle_framework="$app_dir/Contents/Frameworks/Sparkle.framework"
 sign_nested() {
@@ -59,11 +56,9 @@ sign_nested "$sparkle_framework/Versions/B/Updater.app"
 sign_nested "$sparkle_framework"
 if [[ "$identity" == '-' ]]; then
     codesign --force --sign - --identifier io.sleepguard.backend "$app_dir/Contents/Resources/sleepguard"
-    codesign --force --sign - --identifier io.sleepguard.app.agent "$app_dir/Contents/MacOS/SleepGuardMonitor"
     codesign --force --sign - "$app_dir"
 else
     codesign --force --sign "$identity" --options runtime --timestamp --identifier io.sleepguard.backend "$app_dir/Contents/Resources/sleepguard"
-    codesign --force --sign "$identity" --options runtime --timestamp --identifier io.sleepguard.app.agent "$app_dir/Contents/MacOS/SleepGuardMonitor"
     codesign --force --sign "$identity" --options runtime --timestamp "$app_dir"
 fi
 codesign --verify --deep --strict "$app_dir"
