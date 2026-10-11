@@ -1,11 +1,9 @@
-SleepGuard 0.4.5 fixes an unresponsive menu bar after starting or restoring monitoring.
+SleepGuard 0.4.6 fixes extra blank space above and below the menu bar panel.
 
-- A short stdout/stderr message could leave the log reader waiting for 64 KiB while holding a lock needed by the interface. Pipe reads now consume available bytes without blocking.
-- Short messages are written while the monitor remains running. Log settings, status refresh and menu actions remain responsive; shutdown still drains the final output.
-- Configurable log retention and the content-sized menu from 0.4.4 are retained.
+- The native menu window now follows the measured content height, keeping its top edge anchored.
+- Long menus remain constrained to the available screen height and scroll to the bottom. Switching back to shorter content shrinks the window immediately.
+- Menu reopening and screen changes reapply the current height. Management windows are unaffected.
 
-Existing rules, configuration and event history are retained. Log cleanup only targets regular archive files created by SleepGuard.
+Native window checks cover actual content and window dimensions, content growth and shrinkage, screen height changes, and restoration from a stale window size. A real MenuBarExtra fixture also passed short/long/short visual and scrolling checks. Full release acceptance is recorded separately in the project documentation.
 
-The regression check keeps a child alive after short stdout/stderr messages, verifies immediate log output and main-actor responsiveness, changes retention settings, and stops the child. Existing output-draining, lifecycle, log rotation and menu-size checks remain in place. Actual release and native acceptance evidence is recorded separately in the project documentation.
-
-Apple Silicon and Intel installers use ad-hoc app signing without Apple notarization. Sparkle verifies the update feed and downloaded package with the existing Ed25519 key.
+Existing rules, configuration, event history and log retention settings are retained. Apple Silicon and Intel installers use ad-hoc app signing without Apple notarization. Sparkle verifies the update feed and downloaded package with the existing Ed25519 key.
