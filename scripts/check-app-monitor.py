@@ -92,6 +92,11 @@ try:
             attempt = int(attempts.read_text()) + 1 if attempts.exists() else 1
             attempts.write_text(str(attempt))
             record('start')
+            if state.name == 'short-output':
+                sys.stdout.write('stdout-start\\n')
+                sys.stdout.flush()
+                sys.stderr.write('stderr-start\\n')
+                sys.stderr.flush()
             if attempt == 1 and state.name in ('retry-stop', 'retry-resume', 'normal-exit'):
                 record('exit')
                 raise SystemExit(0 if state.name == 'normal-exit' else 7)
@@ -105,7 +110,7 @@ try:
             record('exit')
             '''))
         worker.chmod(0o700)
-        states = [root / mode for mode in ('lifecycle', 'orphan-parent', 'retry-stop', 'retry-resume', 'normal-exit')]
+        states = [root / mode for mode in ('lifecycle', 'orphan-parent', 'retry-stop', 'retry-resume', 'normal-exit', 'short-output')]
         parent = None
         try:
             lifecycle, orphan = states[:2]

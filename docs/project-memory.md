@@ -104,3 +104,11 @@
 | --- | --- |
 | arm64 | `f393e6ac6176d66236bdc5c9357a34c402b6e1abf360d30aa5464c8e84bd3cd1` |
 | x86_64 | `90d6c99be85dcbfbe9c5bd10e41410f26c9bc2317bb9308ff62e67612667cd9f` |
+
+
+## 2026-10-11 v0.4.5 菜单无响应修复
+
+- 更新到 0.4.4 后，现场 GUI 29105 的主线程停在 `GoBackend.configuration → AppMonitor.configureLog → MonitorLog.configure → __psynch_mutexwait`；日志回调持锁停在 `NSFileHandle.read(upToCount:) → read`。短日志不足 64 KiB 时等待更多数据，导致主线程无法刷新和处理菜单。真实 Go 子进程 29120 当时仍运行；根因是日志读取阻塞。
+- 改为非阻塞 POSIX 管道读取，区分暂时无数据与 EOF，重试 EINTR，退出时分块排空剩余输出。保留日志轮转、保留策略和菜单自然高度。
+- 新增独立子进程回归：写入短 stdout/stderr 后保持存活，主线程等待 700 ms 后修改日志配置、读取错误状态与已落盘短日志，再正常停止。Python 外部 15 秒超时可捕获主线程卡死，失败清理只针对测试进程。
+- `make test check check-ui`、独立 arm64 App 构建及严格包检查通过；既有大输出完整性、异常重试、父进程退出、轮转和菜单高度检查通过。现场升级和实际菜单入口验收待发布后执行。

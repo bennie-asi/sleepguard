@@ -10,7 +10,7 @@ import Darwin
         let mode = arguments[0]
         let worker = URL(fileURLWithPath: arguments[1])
         let state = URL(fileURLWithPath: arguments[2])
-        guard ["lifecycle", "orphan-parent", "retry-stop", "retry-resume", "normal-exit"].contains(mode),
+        guard ["lifecycle", "orphan-parent", "retry-stop", "retry-resume", "normal-exit", "short-output"].contains(mode),
               worker.lastPathComponent == "stdin-worker.py",
               state.deletingLastPathComponent() == worker.deletingLastPathComponent(),
               state.deletingLastPathComponent().lastPathComponent.hasPrefix("sleepguard-app-monitor-") else { exit(2) }
@@ -19,6 +19,19 @@ import Darwin
             let config = state.appendingPathComponent("config.toml").path
             try monitor.start(executable: worker, config: config, state: state.path)
             try await waitForStarts(1, state: state)
+            if mode == "short-output" {
+                // Keep the writer alive: waiting for EOF hid the 64 KiB read
+                // deadlock. The harness times out if the main actor blocks.
+                try await Task.sleep(for: .milliseconds(700))
+                monitor.configureLog(days: 8, count: 9)
+                try check(monitor.logFailure == nil, "short output caused a log error")
+                try check(monitor.running, "short-output worker exited before readback")
+                let output = try String(contentsOf: state.appendingPathComponent("agent.log"), encoding: .utf8)
+                try check(output.contains("stdout-start\n") && output.contains("stderr-start\n"), "short output was buffered until exit")
+                try await monitor.stop()
+                print("AppMonitor short-output passed (live stdout/stderr, responsive main actor, configuration and stop).")
+                return
+            }
             if ["retry-stop", "retry-resume", "normal-exit"].contains(mode) {
                 let deadline = Date().addingTimeInterval(5)
                 while monitor.running || (mode == "normal-exit" ? monitor.monitoringRequested : monitor.failure == nil) {

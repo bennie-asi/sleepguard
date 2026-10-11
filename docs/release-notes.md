@@ -1,12 +1,11 @@
-SleepGuard 0.4.4 adds configurable log retention and improves menu panel sizing.
+SleepGuard 0.4.5 fixes an unresponsive menu bar after starting or restoring monitoring.
 
-- Runtime logs rotate at the start of a new local day or at 10 MB. The app captures both stdout and stderr from its monitor, preserving final output during shutdown and restart.
-- Settings → 日志与历史 now includes log retention days (default 7, range 1–365) and archive count (default 10, range 1–100). Either limit removes the oldest archives; the current log is not counted. Event-history retention remains separate.
-- Existing configurations use the new defaults. Saved log preferences apply without restarting the monitor; externally edited preferences are picked up on the app's next refresh.
-- The menu measures its content height, shrinks for short content and scrolls when content exceeds the screen limit.
+- A short stdout/stderr message could leave the log reader waiting for 64 KiB while holding a lock needed by the interface. Pipe reads now consume available bytes without blocking.
+- Short messages are written while the monitor remains running. Log settings, status refresh and menu actions remain responsive; shutdown still drains the final output.
+- Configurable log retention and the content-sized menu from 0.4.4 are retained.
 
 Existing rules, configuration and event history are retained. Log cleanup only targets regular archive files created by SleepGuard.
 
-Validation includes Go race/vet, Swift checks, log retention and complete child-output tests, short/long/short menu sizing checks, 11 isolated login/update scenarios, a native settings-save readback and an arm64 build with strict package verification. Actual menu-bar visual acceptance, multi-display interaction and the public 0.4.3 to 0.4.4 upgrade remain separate acceptance items.
+The regression check keeps a child alive after short stdout/stderr messages, verifies immediate log output and main-actor responsiveness, changes retention settings, and stops the child. Existing output-draining, lifecycle, log rotation and menu-size checks remain in place. Actual release and native acceptance evidence is recorded separately in the project documentation.
 
 Apple Silicon and Intel installers use ad-hoc app signing without Apple notarization. Sparkle verifies the update feed and downloaded package with the existing Ed25519 key.

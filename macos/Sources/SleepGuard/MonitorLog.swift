@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 // Only this object owns the output file. The child writes to a pipe, so renaming
 // a log never leaves it writing to an old (or already deleted) archive inode.
@@ -22,6 +23,11 @@ final class MonitorLog: @unchecked Sendable {
     init(directory: URL, days: Int, count: Int, maximumBytes: Int = 10 * 1024 * 1024, now: Date = Date()) throws {
         self.directory = directory; self.days = days; self.count = count
         self.maximumBytes = maximumBytes; openedAt = now; lastMaintenance = now
+        let descriptor = pipe.fileHandleForReading.fileDescriptor
+        let flags = fcntl(descriptor, F_GETFL)
+        guard flags != -1, fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != -1 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
         try open(now: now)
         try maintain(now: now)
     }
@@ -37,10 +43,26 @@ final class MonitorLog: @unchecked Sendable {
         lock.withLock {
             guard !finished else { return }
             do {
-                let data = try pipe.fileHandleForReading.read(upToCount: 64 * 1024) ?? Data()
+                guard let data = try readAvailable() else { return }
                 if data.isEmpty { pipe.fileHandleForReading.readabilityHandler = nil; return }
                 try appendLocked(data, now: Date())
             } catch { errorMessage = "运行日志写入失败：\(error.localizedDescription)" }
+        }
+    }
+
+    // Foundation's read(upToCount:) can wait for the requested size on a pipe.
+    // A nonblocking POSIX read consumes only available bytes, so a quiet child
+    // never holds the lock while the main actor is checking or configuring logs.
+    // nil means no data yet; empty Data means EOF. Caller holds lock.
+    private func readAvailable() throws -> Data? {
+        var bytes = [UInt8](repeating: 0, count: 64 * 1024)
+        while true {
+            let length = Darwin.read(pipe.fileHandleForReading.fileDescriptor, &bytes, bytes.count)
+            if length >= 0 { return Data(bytes.prefix(length)) }
+            let code = errno
+            if code == EINTR { continue }
+            if code == EAGAIN || code == EWOULDBLOCK { return nil }
+            throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
         }
     }
 
@@ -80,7 +102,9 @@ final class MonitorLog: @unchecked Sendable {
             pipe.fileHandleForReading.readabilityHandler = nil
             try? pipe.fileHandleForWriting.close()
             do {
-                if let data = try pipe.fileHandleForReading.readToEnd() { try appendLocked(data, now: Date()) }
+                while let data = try readAvailable(), !data.isEmpty {
+                    try appendLocked(data, now: Date())
+                }
             } catch { errorMessage = "运行日志收尾失败：\(error.localizedDescription)" }
             finished = true
             try? pipe.fileHandleForReading.close()
