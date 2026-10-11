@@ -34,12 +34,14 @@ import Foundation
 
         var draftMonitor = baseline.monitor; draftMonitor.interval = "120s"
         var draftActions = baseline.actions; draftActions.wait = "1h"
-        for field in ["interval", "wait", "killAfter", "allowSigkill"] {
+        for field in ["interval", "wait", "killAfter", "allowSigkill", "logRetentionDays", "logRetentionCount"] {
             current = baseline
             switch field {
             case "interval": current.monitor.interval = "90s"
             case "wait": current.actions.wait = "2h"
             case "killAfter": current.actions.killAfter = "30s"
+            case "logRetentionDays": current.monitor.logRetentionDays = 14
+            case "logRetentionCount": current.monitor.logRetentionCount = 20
             default: current.actions.allowSigkill = true
             }
             let external = current

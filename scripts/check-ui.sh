@@ -53,6 +53,19 @@ xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx
   "$project_dir/macos/Tests/CheckSupport.swift"
 "$check_dir/login-launch-check"
 python3 "$project_dir/scripts/check-app-monitor.py"
+xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
+  -module-cache-path "$project_dir/work/swift-cache" \
+  -o "$check_dir/log-check" \
+  "$project_dir/macos/Sources/SleepGuard/MonitorLog.swift" \
+  "$project_dir/macos/Tests/MonitorLogChecks.swift"
+"$check_dir/log-check"
+xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
+  -module-cache-path "$project_dir/work/swift-cache" \
+  -o "$check_dir/menu-size-check" \
+  "$project_dir/macos/Sources/SleepGuard/ViewState.swift" \
+  "$project_dir/macos/Sources/SleepGuard/MenuPanelContainer.swift" \
+  "$project_dir/macos/Tests/MenuPanelSizeChecks.swift"
+"$check_dir/menu-size-check"
 python3 "$project_dir/scripts/check-build-in-use.py"
 sparkle_dir="$("$project_dir/scripts/fetch-sparkle.sh")"
 xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \

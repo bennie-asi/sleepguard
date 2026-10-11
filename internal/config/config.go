@@ -42,6 +42,8 @@ type Monitor struct {
 	NotifyCount        int    `toml:"notify_count" json:"notify_count"`
 	FinalGrace         string `toml:"final_grace" json:"final_grace"`
 	RetentionDays      int    `toml:"retention_days" json:"retention_days"`
+	LogRetentionDays   int    `toml:"log_retention_days" json:"log_retention_days"`
+	LogRetentionCount  int    `toml:"log_retention_count" json:"log_retention_count"`
 }
 type Telegram struct {
 	Enabled         bool   `toml:"enabled" json:"enabled"`
@@ -109,7 +111,7 @@ func (c *Config) Normalize() {
 
 func Default() Config {
 	return Config{
-		Monitor:  Monitor{"60s", "5m", "2m", 3, "10m", 3, "10m", 30},
+		Monitor:  Monitor{"60s", "5m", "2m", 3, "10m", 3, "10m", 30, 7, 10},
 		Telegram: Telegram{false, 0, "SLEEPGUARD_TELEGRAM_TOKEN", "sleepguard.telegram", "15s"},
 		Actions:  Actions{Enabled: false, KillAfter: "15s", Wait: "30m"},
 		Rules:    []Rule{}, Channels: []Channel{},
@@ -158,6 +160,9 @@ func (c Config) Validate() error {
 	}
 	if c.Monitor.ConsecutiveSamples < 2 || c.Monitor.NotifyCount < 1 || c.Monitor.RetentionDays < 1 {
 		return fmt.Errorf("consecutive_samples 至少 2，notify_count 和 retention_days 至少 1")
+	}
+	if c.Monitor.LogRetentionDays < 1 || c.Monitor.LogRetentionDays > 365 || c.Monitor.LogRetentionCount < 1 || c.Monitor.LogRetentionCount > 100 {
+		return fmt.Errorf("log_retention_days 必须为 1–365，log_retention_count 必须为 1–100")
 	}
 	if c.Telegram.Enabled && (c.Telegram.ChatID == 0 || (c.Telegram.TokenEnv == "" && c.Telegram.KeychainService == "")) {
 		return fmt.Errorf("启用 Telegram 需要 chat_id 和凭据来源")
@@ -220,6 +225,8 @@ reminder_interval = "10m"
 notify_count = 3 # 旧配置兼容字段，不再作为处理门槛
 final_grace = "10m"
 retention_days = 30
+log_retention_days = 7 # 运行日志归档保留天数，与事件历史分开
+log_retention_count = 10 # 最多保留的归档份数，不含当前 agent.log
 
 [notifications]
 system_enabled = false # 原生应用授权后开启

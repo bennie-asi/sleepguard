@@ -1,15 +1,12 @@
-SleepGuard 0.4.3 improves monitoring reliability and removes the old background service.
+SleepGuard 0.4.4 adds configurable log retention and improves menu panel sizing.
 
-- The menu-bar app now owns the Go monitor as a child process. Closing the window keeps monitoring active; quitting or an app crash closes the child. Abnormal child exits are retried.
-- “Start at login” controls the main app separately. Disabling it keeps the current monitor running, and quitting preserves the next-login preference.
-- Old LaunchAgent definitions, the monitor helper, migration entry points and CLI `service` commands are removed. Command-line monitoring remains available through foreground `sleepguard watch`. UI controls consistently refer to monitoring.
-- Pause, resume and blackout changes are checked again immediately before automatic termination, so an acknowledged control change prevents a previously authorized signal.
-- Failed preflight checks keep notifications active and retry later. Once a termination signal has been attempted, it is not repeated for the same incident.
-- Saving rules or settings detects changes made elsewhere and preserves the unsaved draft instead of overwriting newer data.
-- Monitor health shows the worker's actual sampling progress, errors and overdue samples separately from UI refreshes.
+- Runtime logs rotate at the start of a new local day or at 10 MB. The app captures both stdout and stderr from its monitor, preserving final output during shutdown and restart.
+- Settings → 日志与历史 now includes log retention days (default 7, range 1–365) and archive count (default 10, range 1–100). Either limit removes the oldest archives; the current log is not counted. Event-history retention remains separate.
+- Existing configurations use the new defaults. Saved log preferences apply without restarting the monitor; externally edited preferences are picked up on the app's next refresh.
+- The menu measures its content height, shrinks for short content and scrolls when content exceeds the screen limit.
 
-Existing rules, configuration and history are retained. Legacy standalone service users must stop their old service before using the new monitor; this release does not include an automatic migration entry point.
+Existing rules, configuration and event history are retained. Log cleanup only targets regular archive files created by SleepGuard.
 
-Validation includes Go race/vet checks, Swift checks, child-process lifecycle tests, 11 isolated login/update-recovery scenarios, an arm64 app build and strict package verification. Real login/reboot and a public 0.4.2 to 0.4.3 upgrade remain separate acceptance items.
+Validation includes Go race/vet, Swift checks, log retention and complete child-output tests, short/long/short menu sizing checks, 11 isolated login/update scenarios, a native settings-save readback and an arm64 build with strict package verification. Actual menu-bar visual acceptance, multi-display interaction and the public 0.4.3 to 0.4.4 upgrade remain separate acceptance items.
 
 Apple Silicon and Intel installers use ad-hoc app signing without Apple notarization. Sparkle verifies the update feed and downloaded package with the existing Ed25519 key.

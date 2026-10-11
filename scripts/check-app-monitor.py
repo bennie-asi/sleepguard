@@ -70,6 +70,7 @@ try:
                         '-target', platform.machine() + '-apple-macosx13.0',
                         '-module-cache-path', str(project / 'work/swift-cache'),
                         '-o', str(executable), str(source / 'AppMonitor.swift'),
+                        str(source / 'MonitorLog.swift'),
                         str(project / 'macos/Tests/CheckSupport.swift'),
                         str(project / 'macos/Tests/AppMonitorChecks.swift')], check=True)
         worker = root / 'stdin-worker.py'
@@ -96,6 +97,11 @@ try:
                 raise SystemExit(0 if state.name == 'normal-exit' else 7)
             assert sys.stdin.buffer.read() == b''
             record('eof')
+            if state.name == 'lifecycle':
+                sys.stdout.write('stdout-final\\n' * 10000)
+                sys.stdout.flush()
+                sys.stderr.write('stderr-final\\n' * 10000)
+                sys.stderr.flush()
             record('exit')
             '''))
         worker.chmod(0o700)
@@ -110,6 +116,8 @@ try:
             records = events(lifecycle)
             starts = [event for event in records if event['event'] == 'start']
             assert len(starts) == 2 and len({event['pid'] for event in starts}) == 2, records
+            log = (lifecycle / 'agent.log').read_text()
+            assert log.count('stdout-final\n') == 20000 and log.count('stderr-final\n') == 20000, 'lost final worker output'
             for start in starts:
                 assert [event['event'] for event in records if event['pid'] == start['pid']] == ['start', 'eof', 'exit'], records
                 wait_for(lambda pid=start['pid']: process_command(pid) is None,

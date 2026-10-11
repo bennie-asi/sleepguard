@@ -8,12 +8,20 @@ import Darwin
     static let shared = AppMonitor()
     private var process: Process?
     private var lifetime: Pipe?
-    private var log: FileHandle?
+    private var log: MonitorLog?
+    private var logDays = 7
+    private var logCount = 10
     private var supervisor: Task<Void, Never>?
     private let retryDelay: Duration
     private(set) var failure: String?
     private(set) var monitoringRequested = false
     var running: Bool { process?.isRunning == true }
+    var logFailure: String? { log?.failure }
+
+    func configureLog(days: Int, count: Int) {
+        logDays = days; logCount = count
+        log?.configure(days: days, count: count)
+    }
 
     init(retryDelay: Duration = .seconds(30)) { self.retryDelay = retryDelay }
 
@@ -27,7 +35,10 @@ import Darwin
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
                 guard let self, let process = self.process else { return }
-                guard !process.isRunning else { continue }
+                if process.isRunning {
+                    self.log?.configure(days: self.logDays, count: self.logCount)
+                    continue
+                }
                 let status = process.terminationStatus
                 self.closeHandles()
                 guard status != 0 else {
@@ -51,22 +62,16 @@ import Darwin
         closeHandles()
         let directory = URL(fileURLWithPath: state)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        let logURL = directory.appendingPathComponent("agent.log")
-        if !FileManager.default.fileExists(atPath: logURL.path) {
-            guard FileManager.default.createFile(atPath: logURL.path, contents: nil, attributes: [.posixPermissions: 0o600]) else {
-                throw BackendFailure(message: "无法创建监控日志。")
-            }
-        }
-        let output = try FileHandle(forWritingTo: logURL)
-        try output.seekToEnd()
+        let output = try MonitorLog(directory: directory, days: logDays, count: logCount)
         let pipe = Pipe(), child = Process()
         child.executableURL = executable
         child.arguments = ["watch", "--exit-on-stdin-close", "--config", config, "--state-dir", state]
         child.standardInput = pipe
-        child.standardOutput = output
-        child.standardError = output
+        child.standardOutput = output.pipe
+        child.standardError = output.pipe
         do { try child.run() }
-        catch { try? output.close(); try? pipe.fileHandleForReading.close(); try? pipe.fileHandleForWriting.close(); throw error }
+        catch { output.finish(); try? pipe.fileHandleForReading.close(); try? pipe.fileHandleForWriting.close(); throw error }
+        output.capture()
         try? pipe.fileHandleForReading.close()
         process = child; lifetime = pipe; log = output; failure = nil
     }
@@ -90,7 +95,7 @@ import Darwin
     private func closeHandles() {
         try? lifetime?.fileHandleForReading.close()
         try? lifetime?.fileHandleForWriting.close()
-        try? log?.close()
+        log?.finish()
         lifetime = nil; log = nil; process = nil
     }
 }

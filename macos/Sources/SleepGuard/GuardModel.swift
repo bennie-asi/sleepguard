@@ -3,6 +3,7 @@ import SwiftUI
 import UserNotifications
 
 @MainActor final class GuardModel: ObservableObject {
+    @Published private(set) var logFailure: String?
     let backend = GoBackend()
     let screenController = ScreenController()
     let shortcuts = ShortcutController()
@@ -101,6 +102,9 @@ import UserNotifications
     var dirtySettings: Bool { monitor != savedMonitor || actions != savedActions }
     var settingsValidation: String? {
         guard let monitor, let actions else { return nil }
+        guard (1...365).contains(monitor.logRetentionDays), (1...100).contains(monitor.logRetentionCount) else {
+            return "日志保留天数须为 1–365，保留份数须为 1–100。"
+        }
         for (title, value, minimum) in [
             ("检查间隔", monitor.interval, 1.0), ("额外等待时间", monitor.grace, 0),
             ("唤醒宽限期", monitor.wakeGrace, 0), ("通知间隔", monitor.reminderInterval, 0),
@@ -223,7 +227,9 @@ import UserNotifications
         do {
             let latest = try await backend.status()
             let envelope = try await backend.configuration()
+            let logFailure = await backend.logFailure()
             guard monitorOperation == nil, !quitting, revision == statusRevision else { return }
+            self.logFailure = logFailure
             status = latest
             load(envelope.config, resetRules: !dirtyRules, resetSettings: !dirtySettings)
             refreshFailure = nil

@@ -29,8 +29,20 @@ actor GoBackend {
     private func run(_ arguments: [String], input: Data? = nil, timeout: TimeInterval = 12) async throws -> Data {
         try await BackendCommand.run(executable: executable, arguments: arguments + ["--config", configPath, "--state-dir", stateDirectory], input: input, timeout: timeout)
     }
-    func configuration() async throws -> ConfigEnvelope { try decoder.decode(ConfigEnvelope.self, from: await run(["ui", "config"])) }
-    func save(_ envelope: ConfigEnvelope) async throws -> ConfigEnvelope { try decoder.decode(ConfigEnvelope.self, from: await run(["ui", "save-config"], input: encoder.encode(envelope))) }
+    func configuration() async throws -> ConfigEnvelope {
+        let envelope = try decoder.decode(ConfigEnvelope.self, from: await run(["ui", "config"]))
+        await applyLogPolicy(envelope.config.monitor)
+        return envelope
+    }
+    func save(_ envelope: ConfigEnvelope) async throws -> ConfigEnvelope {
+        let saved = try decoder.decode(ConfigEnvelope.self, from: await run(["ui", "save-config"], input: encoder.encode(envelope)))
+        await applyLogPolicy(saved.config.monitor)
+        return saved
+    }
+    private func applyLogPolicy(_ monitor: MonitorConfig) async {
+        await AppMonitor.shared.configureLog(days: monitor.logRetentionDays, count: monitor.logRetentionCount)
+    }
+    func logFailure() async -> String? { await AppMonitor.shared.logFailure }
     func status() async throws -> GuardStatus { try decoder.decode(GuardStatus.self, from: await run(["ui", "status"])) }
     func history() async throws -> [HistoryEvent] { try decoder.decode([HistoryEvent].self, from: await run(["history", "--limit", "100"])) }
     func processes() async throws -> [GuardProcess] { try decoder.decode([GuardProcess].self, from: await run(["ui", "processes"], timeout: 25)) }
@@ -41,6 +53,7 @@ actor GoBackend {
         guard try await !status().watcherRunning else {
             throw BackendFailure(message: "已有其他监控进程正在运行，请先停止该进程。")
         }
+        _ = try await configuration()
         try await AppMonitor.shared.start(executable: executable, config: configPath, state: stateDirectory)
     }
     func stopMonitor() async throws { try await AppMonitor.shared.stop() }

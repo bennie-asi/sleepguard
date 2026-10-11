@@ -26,7 +26,7 @@ Apple Developer ID and notarization are optional. Without an Apple certificate t
 
 The Sparkle key is stored under Keychain account `sleepguard`. `work/sparkle-2.10.0/bin/generate_keys --account sleepguard -p` displays only its public key for comparison with `SUPublicEDKey` in `macos/Info.plist`. Never commit the private key or paste it into an issue or build log.
 
-Commit the new `VERSION`, wait for both main-branch builds to pass, then create and push the matching `vX.Y.Z` tag. Tags must match `VERSION` and exceed the latest published Release. Both architectures must pass before a release is created. With `SPARKLE_ED25519_PRIVATE_KEY` configured, the workflow signs both update feeds, uploads all six assets and publishes. With no Sparkle Secret, it creates a **draft** containing the two DMGs and checksums. It never publishes an unsigned or incomplete update feed.
+After the relevant local checks, commit the new `VERSION` and release notes, then push the main commit and matching `vX.Y.Z` tag directly. Do not first build or wait for main: pushes trigger this workflow only for version tags; pull-request and manual checks remain available. The tag workflow still tests and builds both architectures before creating a release. Tags must match `VERSION` and exceed the latest published Release. With `SPARKLE_ED25519_PRIVATE_KEY` configured, the workflow signs both update feeds, uploads all six assets and publishes. With no Sparkle Secret, it creates a **draft** containing the two DMGs and checksums. It never publishes an unsigned or incomplete update feed.
 
 To finish a draft without exporting the local private key:
 
@@ -46,6 +46,8 @@ To finish a draft without exporting the local private key:
 4. Attach `appcast-arm64.xml` and `appcast-x86_64.xml` to the draft. Confirm all six filenames, then publish and read back the Release and both latest-feed URLs.
 
 Both feeds are addressed through `releases/latest/download`; no GitHub Pages deployment is needed. Published assets are immutable: use a higher version for fixes. The failed `v0.4.0` tag is retained; `v0.4.1` includes the menu height and publishing repairs.
+
+Remove this task's disposable preview apps, test preferences, temporary binaries, downloaded artifact ZIPs, signing/verification scratch files and release staging directories when they are no longer needed. Verify that their processes have exited first. Keep reusable dependency/compiler caches and recorded acceptance evidence; never clean the user's installed app, configuration, history or running logs as build leftovers.
 
 The first update-enabled installation from `0.3.x` still uses the DMG because older Apps do not contain an updater. Later updates use **立即更新** to download, verify, install and reopen without handling a DMG. Users who enable automatic downloading instead receive the update on App exit.
 

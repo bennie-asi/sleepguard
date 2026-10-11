@@ -158,15 +158,7 @@ struct MenuPanel: View {
         NSApp.activate(ignoringOtherApps: true)
     }
     var body: some View {
-        MenuPanelLayout(maximumHeight: presentation.maximumHeight) {
-            ViewThatFits(in: .vertical) {
-                panel.fixedSize(horizontal: false, vertical: true)
-                ScrollView(.vertical, showsIndicators: false) {
-                    panel.fixedSize(horizontal: false, vertical: true)
-                }.frame(height: presentation.maximumHeight)
-            }
-        }
-            .frame(width: 320)
+        MenuPanelContainer(maximumHeight: presentation.maximumHeight) { panel }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { notification in
                 if notification.object as? NSWindow === presentation.window { presentation.updateHeightLimit() }
             }
@@ -238,19 +230,6 @@ struct MenuPanel: View {
                 Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.secondary)
             }.padding(.horizontal, 10).padding(.vertical, 9).contentShape(Rectangle())
         }.buttonStyle(HoverButtonStyle())
-    }
-}
-// Always propose a bounded height before choosing the regular or scrolling panel.
-// The menu window can otherwise offer an unbounded size and clip the chosen view.
-private struct MenuPanelLayout: Layout {
-    let maximumHeight: CGFloat
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        guard let view = subviews.first else { return .zero }
-        let size = view.sizeThatFits(ProposedViewSize(width: 320, height: maximumHeight))
-        return CGSize(width: 320, height: min(size.height, maximumHeight))
-    }
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
     }
 }
 struct ManagementView: View {
@@ -487,6 +466,7 @@ struct HistoryPage: View {
     @ObservedObject var model: GuardModel
     var body: some View {
         PageHeading(title: "事件历史", detail: "通知与处理记录") { RefreshButton(isRefreshing: model.refreshingHistory, help: "刷新历史", unavailable: model.busy) { await model.reloadHistory() } }
+        if let failure = model.logFailure { QuietNotice(text: failure, warning: true) }
         if model.events.isEmpty { EmptyStateRow(icon: "clock.arrow.circlepath", title: "暂无事件", detail: "通知、暂停和处理记录会显示在这里。") }
         ForEach(model.historyGroups) { group in
             HStack(alignment: .top, spacing: 14) {
@@ -568,6 +548,17 @@ struct SettingsPage: View {
             }
         }
         if model.monitor != nil, model.actions != nil {
+            ExpandableSection("日志与历史", initiallyExpanded: true) {
+                SectionBox {
+                    HStack { Text("日志保留天数"); Spacer(); Stepper("\(model.monitor?.logRetentionDays ?? 7) 天", value: Binding(get: { model.monitor?.logRetentionDays ?? 7 }, set: { model.monitor?.logRetentionDays = $0 }), in: 1...365).frame(width: 130).accessibilityLabel("日志保留天数") }.padding(14)
+                    Divider()
+                    HStack { Text("日志保留份数"); Spacer(); Stepper("\(model.monitor?.logRetentionCount ?? 10) 份", value: Binding(get: { model.monitor?.logRetentionCount ?? 10 }, set: { model.monitor?.logRetentionCount = $0 }), in: 1...100).frame(width: 130).accessibilityLabel("日志保留份数") }.padding(14)
+                    Divider()
+                    Text("运行日志每天或达到 10 MB 时归档；超出天数或份数即清理最旧归档。份数不含当前日志，保存后生效。").font(.caption).foregroundStyle(.secondary).padding(14)
+                    Divider()
+                    HStack { Text("历史保留天数"); Spacer(); Stepper("\(model.monitor?.retentionDays ?? 30) 天", value: Binding(get: { model.monitor?.retentionDays ?? 30 }, set: { model.monitor?.retentionDays = $0 }), in: 1...365).frame(width: 130) }.padding(14)
+                }.padding(.top, 8)
+            }
             ExpandableSection("通知与处理", initiallyExpanded: true) {
                 SectionBox {
                     HStack { Text("连续异常采样"); Spacer(); Stepper("\(model.monitor?.consecutiveSamples ?? 3) 次", value: Binding(get: { model.monitor?.consecutiveSamples ?? 3 }, set: { model.monitor?.consecutiveSamples = $0 }), in: 2...20).frame(width: 130) }.padding(14)
@@ -576,7 +567,6 @@ struct SettingsPage: View {
                     Divider(); DurationInput("退出前等待", value: monitorBinding(\.finalGrace), help: "请求退出前的最后等待，结束后会再次复核")
                     Divider(); DurationInput("请求退出后等待", value: actionBinding(\.killAfter), help: "请求正常退出后，等待应用自行关闭的时间")
                     Divider(); SwitchRow(title: "允许强制结束", detail: "正常退出无响应时使用。", isOn: Binding(get: { model.actions?.allowSigkill ?? false }, set: { model.actions?.allowSigkill = $0 }))
-                    Divider(); HStack { Text("历史保留天数"); Spacer(); Stepper("\(model.monitor?.retentionDays ?? 30) 天", value: Binding(get: { model.monitor?.retentionDays ?? 30 }, set: { model.monitor?.retentionDays = $0 }), in: 1...365).frame(width: 130) }.padding(14)
                 }.padding(.top, 8)
             }
         }

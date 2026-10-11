@@ -17,6 +17,8 @@ struct MonitorConfig: Codable, Equatable, Sendable {
     var notifyCount: Int
     var finalGrace: String
     var retentionDays: Int
+    var logRetentionDays: Int = 7
+    var logRetentionCount: Int = 10
 }
 struct LegacyTelegram: Codable, Equatable, Sendable {
     var enabled: Bool
