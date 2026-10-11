@@ -5,10 +5,11 @@ private struct MenuContentHeight: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
-// Measure the content, not ViewThatFits/ScrollView's proposed viewport. The
-// explicit ideal size also makes MenuBarExtra shrink again after long content.
+// Measure natural content separately from the viewport, and report it to the
+// AppKit window owner: MenuBarExtra may retain its initial host window size.
 struct MenuPanelContainer<Content: View>: View {
     let maximumHeight: CGFloat
+    var onHeightChange: (CGFloat) -> Void = { _ in }
     @ViewBuilder var content: () -> Content
     @ViewState private var contentHeight: CGFloat = 0
 
@@ -22,6 +23,9 @@ struct MenuPanelContainer<Content: View>: View {
         }
         .frame(width: 320, height: min(contentHeight > 0 ? ceil(contentHeight) : maximumHeight, maximumHeight), alignment: .top)
         .fixedSize()
-        .onPreferenceChange(MenuContentHeight.self) { contentHeight = $0 }
+        .onPreferenceChange(MenuContentHeight.self) {
+            contentHeight = $0
+            onHeightChange($0)
+        }
     }
 }

@@ -158,7 +158,10 @@ struct MenuPanel: View {
         NSApp.activate(ignoringOtherApps: true)
     }
     var body: some View {
-        MenuPanelContainer(maximumHeight: presentation.maximumHeight) { panel }
+        MenuPanelContainer(maximumHeight: presentation.maximumHeight, onHeightChange: presentation.updateContentHeight) { panel }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+                if notification.object as? NSWindow === presentation.window { presentation.updateHeightLimit() }
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { notification in
                 if notification.object as? NSWindow === presentation.window { presentation.updateHeightLimit() }
             }

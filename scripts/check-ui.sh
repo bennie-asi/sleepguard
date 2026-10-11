@@ -64,6 +64,7 @@ xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx
   -o "$check_dir/menu-size-check" \
   "$project_dir/macos/Sources/SleepGuard/ViewState.swift" \
   "$project_dir/macos/Sources/SleepGuard/MenuPanelContainer.swift" \
+  "$project_dir/macos/Sources/SleepGuard/MenuWindow.swift" \
   "$project_dir/macos/Tests/MenuPanelSizeChecks.swift"
 "$check_dir/menu-size-check"
 python3 "$project_dir/scripts/check-build-in-use.py"
