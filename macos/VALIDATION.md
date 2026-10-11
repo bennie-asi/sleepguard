@@ -257,3 +257,17 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - `check-login-startup.py` 的 11 个场景全部通过：手动启动、登录禁用/启用、已运行去重、更新恢复记录三种状态、关闭登录开关保留监控、退出保留登录设置、更新前停止与失败后恢复。使用生产 GuardModel/GoBackend/AppMonitor、fake 登录注册表和实际通过 stdin 管道启停的私有 mock 子进程；没有调用旧 service 入口，没有注册或删除系统登录项。临时 App 的 LaunchServices 记录按准确路径清理，临时进程与文件已清理。
 
 以上为工作区构建和隔离自动化验证；未覆盖本轮真实界面交互、重新登录或发布升级，未替换 /Applications 中的应用，未提交或推送。
+
+
+## v0.4.3 正式发布证据
+
+- 2026-10-11 10:56（Asia/Shanghai）回读 [正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.3)：已公开、标记 Latest，包含六份上传资产（另外两份为 GitHub 自动生成的源码归档）。本机未安装该版本，未将构建成功视为真实升级通过。
+- 发布提交 `f85f24780976222853f06cafa2bcd82b45adc90a`，版本 `0.4.3` / build `4003`；远端 `v0.4.3` 指向同一提交。[main 构建](https://github.com/bennie-asi/sleepguard/actions/runs/38106060255) 与 [标签发布](https://github.com/bennie-asi/sleepguard/actions/runs/38106378996) 的 Apple Silicon / Intel 测试、签名、DMG 与包检查均成功。
+- Actions 未配置 Sparkle Secret，先生成包含两份 DMG 和校验文件的草稿。下载的标签 CI artifacts（arm64 `11689682135`、x86_64 `11689827937`）通过 ZIP digest 和 DMG checksum 校验后，使用 Keychain 账户 `sleepguard` 签署同一批 CI 安装包，上传两份清单再发布；没有导出私钥或替换安装包。
+- 使用客户端内置 `SUPublicEDKey`，通过 CryptoKit 独立验证两份 DMG 和两份清单的 Ed25519 签名均通过；清单版本为 `0.4.3` / `4003`，下载地址和文件长度正确。六份公开下载资产逐字节与 CI 包及签署原件一致，也与 GitHub 页面显示的 SHA-256 一致；两种架构的 `releases/latest/download/appcast-*.xml` 均回读为本次签署原件。
+- 仍使用 ad-hoc Apple 签名，未做 Developer ID 和公证。真实 `0.4.2 → 0.4.3` 自动升级、登录/重启及 Intel 原生交互尚未验收。
+
+| 架构 | DMG SHA-256 |
+| --- | --- |
+| arm64 | `bf2bdbadcc361cb0fe39788df03c95609f8ec9f1f931ad4d2e7610d20b3d6328` |
+| x86_64 | `2c98afcd4162f2e1368b04384e864e7fa5bbb0d2e92c7f11d675b7c7999238aa` |

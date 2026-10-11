@@ -4,17 +4,17 @@
 
 ## 当前实现
 
-- `0.4.3` 待发布：本次版本汇总子进程生命周期、独立登录开关、旧服务移除与四项可靠性修复；公开发布状态以本文件后续记录和 GitHub Release 为准。
+- `0.4.3` 已正式发布：汇总子进程生命周期、独立登录开关、旧服务移除与四项可靠性修复；发布与签名证据见本文件末尾。
 
-- 工作区旧服务移除（2026-10-11，尚未发布）：移除 LaunchAgent、独立 helper、CLI `service`、`--run-monitor` 和启动迁移入口；GUI 统一称“监控”，继续由 AppMonitor 管理 Go 子进程，登录项开关独立保留。用户授权删除的本机旧 `agent-settings.json` 已清理，现有配置、规则、历史与登录项未改。
+- 旧服务移除（2026-10-11，已包含于 0.4.3）：移除 LaunchAgent、独立 helper、CLI `service`、`--run-monitor` 和启动迁移入口；GUI 统一称“监控”，继续由 AppMonitor 管理 Go 子进程，登录项开关独立保留。用户授权删除的本机旧 `agent-settings.json` 已清理，现有配置、规则、历史与登录项未改。
 
-- 工作区可靠性修复（2026-10-11，尚未发布）：自动信号与暂停/恢复/黑屏控制共用短时锁；未发信号的复核失败会退避重试；规则与设置保存检查编辑起点；状态页区分界面快照与后台成功采样，并显示后台超时和最近错误。验证范围见 `macos/VALIDATION.md` 同日记录。
+- 可靠性修复（2026-10-11，已包含于 0.4.3）：自动信号与暂停/恢复/黑屏控制共用短时锁；未发信号的复核失败会退避重试；规则与设置保存检查编辑起点；状态页区分界面快照与后台成功采样，并显示后台超时和最近错误。验证范围见 `macos/VALIDATION.md` 同日记录。
 
 - 原生 SwiftUI 菜单栏与管理窗口，保留 Go 后台；应用规则、系统通知、多 Telegram 渠道、历史、暂停/恢复、手动结束应用、所有屏幕黑屏、锁屏和快捷键已接入。
 - `0.4.0` 加入 Sparkle 2.10.0 的版本页与应用内更新。按安装包架构读取 GitHub 最新 Release 的 `appcast-arm64.xml` 或 `appcast-x86_64.xml`；下载前校验清单、解压前校验安装包。
 - `0.4.1` 菜单按内容高度收缩，最大 640 点，并限制在当前显示器可用高度内；超出后滚动，滚动条隐藏。
 - `0.4.2` 在更新前检测运行中可执行文件的身份；文件被替换时自动重新启动并继续更新。构建前与替换前均拒绝覆盖运行中的 App / 内置后台，支持 `APP_OUTPUT` 独立构建目录。
-- 本机默认构建为 ad-hoc 签名。工作区的登录启动修复使用 `SMAppService.mainApp` 管理独立开关，GUI 直接管理包内 Go 子进程，不额外注册 LaunchAgent；退出确认后停止后台但保留登录项。公开 `0.4.2` 仍使用旧后台注册方案，尚未包含本次修复。
+- 本机默认构建为 ad-hoc 签名。工作区的登录启动修复使用 `SMAppService.mainApp` 管理独立开关，GUI 直接管理包内 Go 子进程，不额外注册 LaunchAgent；退出确认后停止后台但保留登录项。历史公开版 `0.4.2` 使用旧后台注册方案；上述变更从 `0.4.3` 开始发布。
 - `VERSION` 为唯一发布版本来源，App 和 Go CLI 共享版本/构建号；两种架构的构建号相同。
 
 ## 2026-10-10 发布修复
@@ -69,3 +69,17 @@
 | --- | --- |
 | arm64 | `9a465c30610430448c45bf998f2b5529d611d117b2d6336aa01932ccb17c93d5` |
 | x86_64 | `96bfd6c898e521f7f5c337a13b9b3d264b62dffe75a02814cd9ab98633617eea` |
+
+
+## v0.4.3 正式发布证据
+
+- 2026-10-11 10:56（Asia/Shanghai）回读 [正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.3)：已公开、标记 Latest，包含六份上传资产（另外两份为 GitHub 自动生成的源码归档）。本机未安装该版本，未将构建成功视为真实升级通过。
+- 发布提交 `f85f24780976222853f06cafa2bcd82b45adc90a`，版本 `0.4.3` / build `4003`；远端 `v0.4.3` 指向同一提交。[main 构建](https://github.com/bennie-asi/sleepguard/actions/runs/38106060255) 与 [标签发布](https://github.com/bennie-asi/sleepguard/actions/runs/38106378996) 的 Apple Silicon / Intel 测试、签名、DMG 与包检查均成功。
+- Actions 未配置 Sparkle Secret，先生成包含两份 DMG 和校验文件的草稿。下载的标签 CI artifacts（arm64 `11689682135`、x86_64 `11689827937`）通过 ZIP digest 和 DMG checksum 校验后，使用 Keychain 账户 `sleepguard` 签署同一批 CI 安装包，上传两份清单再发布；没有导出私钥或替换安装包。
+- 使用客户端内置 `SUPublicEDKey`，通过 CryptoKit 独立验证两份 DMG 和两份清单的 Ed25519 签名均通过；清单版本为 `0.4.3` / `4003`，下载地址和文件长度正确。六份公开下载资产逐字节与 CI 包及签署原件一致，也与 GitHub 页面显示的 SHA-256 一致；两种架构的 `releases/latest/download/appcast-*.xml` 均回读为本次签署原件。
+- 仍使用 ad-hoc Apple 签名，未做 Developer ID 和公证。真实 `0.4.2 → 0.4.3` 自动升级、登录/重启及 Intel 原生交互尚未验收。
+
+| 架构 | DMG SHA-256 |
+| --- | --- |
+| arm64 | `bf2bdbadcc361cb0fe39788df03c95609f8ec9f1f931ad4d2e7610d20b3d6328` |
+| x86_64 | `2c98afcd4162f2e1368b04384e864e7fa5bbb0d2e92c7f11d675b7c7999238aa` |
