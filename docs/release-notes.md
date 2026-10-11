@@ -1,4 +1,4 @@
-SleepGuard 0.4.6 fixes extra blank space above and below the menu bar panel.
+SleepGuard 0.4.7 fixes extra blank space above and below the menu bar panel.
 
 - The native menu window now follows the measured content height, keeping its top edge anchored.
 - Long menus remain constrained to the available screen height and scroll to the bottom. Switching back to shorter content shrinks the window immediately.
