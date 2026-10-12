@@ -348,7 +348,7 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 
 - 用原生回归检查覆盖 `IOPMCopyAssertionsByProcess` 成功码 `0` 且空字典，以及非零错误码。`make test check check-ui`、`make app` 和 `scripts/check-package.py` 通过；构建使用 Go 1.27.0。
 - 隔离 Bundle ID、配置和历史的原生预览应用中，注入最近错误后叉号可同时隐藏状态页横幅及停止监控时的详情；刷新和重启后仍隐藏，新时间戳错误重新显示。手动刷新成功提示悬浮在管理窗口右下角，内容未移位；预览应用、注册和测试偏好已清理。
-- 发布提交 `d47f34ee3ef96a7257df4d757f48a5e7633c0e3a`；`main` 和 `v0.4.8` 均指向该提交。[标签流水线](https://github.com/bennie-asi/sleepguard/actions/runs/38204533557) 的 arm64 与 x86_64 测试、构建和包检查通过。首次 Intel 上传制品遇到 GitHub DNS `ENOTFOUND`，仅重跑失败任务后两架构及 release job 均成功。
+- 发布提交 `d47f34ee3ef96a7257df4d757f48a5e7633c0e3a`；推送标签时 `main` 与 `v0.4.8` 均指向该提交，验收记录随后单独提交到 `main`。[标签流水线](https://github.com/bennie-asi/sleepguard/actions/runs/38204533557) 的 arm64 与 x86_64 测试、构建和包检查通过。首次 Intel 上传制品遇到 GitHub DNS `ENOTFOUND`，仅重跑失败任务后两架构及 release job 均成功。
 - CI artifacts `11726194310`（arm64）、`11726454916`（x86_64）下载哈希通过。本机 Keychain 账户 `sleepguard` 对同批 CI 安装包生成更新清单，并用 `sign_update --verify` 验证签名；本机公钥与应用内 `SUPublicEDKey` 一致。[正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.8) 已公开、标记 Latest，六份公开资产哈希与本机签署及校验的文件一致，两份 `/releases/latest/download/` 清单也逐字节一致。
 - 正式安装 `/Applications/SleepGuard.app` 目前仍为 0.4.7。应用内检查更新已发现 0.4.8；点击“立即更新”提示必须先结束当前全屏黑屏。未改动黑屏及运行状态，正式安装的跨版本升级、历史保留与新版本实际运行待验收。
 
