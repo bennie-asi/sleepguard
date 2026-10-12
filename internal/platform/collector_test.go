@@ -42,7 +42,18 @@ func TestGlobalSleepSwitch(t *testing.T) {
 			t.Fatal(v, got, e)
 		}
 	}
-	if _, e := ParseSleepDisabled("unknown"); e == nil {
-		t.Fatal("missing switch accepted")
+	for _, text := range []string{
+		"System-wide power settings:\nCurrently in use:\n sleep 1 (sleep prevented by app)\n displaysleep 10\n",
+		"System-wide power settings:\n DestroyFVKeyOnStandby 0\n",
+	} {
+		if got, e := ParseSleepDisabled(text); e != nil || got {
+			t.Fatalf("unset override should leave sleep enabled: %v %v", got, e)
+		}
+	}
+	for _, text := range []string{"", "unknown", "Currently in use:\n sleep 1\n",
+		"System-wide power settings:\n SleepDisabled", "System-wide power settings:\n SleepDisabled 2"} {
+		if _, e := ParseSleepDisabled(text); e == nil {
+			t.Fatalf("invalid system settings accepted: %q", text)
+		}
 	}
 }

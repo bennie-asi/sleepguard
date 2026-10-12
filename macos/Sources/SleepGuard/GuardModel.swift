@@ -406,7 +406,8 @@ import UserNotifications
         busy = true; quitting = true; monitorOperation = .stopping; information = nil; statusRevision += 1
         defer { busy = false; quitting = false; monitorOperation = nil }
         try await backend.stopMonitor()
-        try await confirmMonitor(running: false)
+        // AppMonitor.stop verifies its owned child has exited. A fresh power
+        // snapshot can fail independently and must not prevent quitting.
         timerTask?.cancel()
     }
     func prepareForUpdate(continuingUpdate: Bool = false) async throws {

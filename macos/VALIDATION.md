@@ -356,3 +356,13 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 | --- | --- |
 | arm64 | `91410b4e181e20b573586d5a10a75238c9e6b77db1fb5642544435e32879d853` |
 | x86_64 | `1a80a168339c95ac61f8f79f2e67272efc1aa4b154405a8540a25699e5221f35` |
+
+## 2026-10-13 本机启动与退出修复验收
+
+- 环境：Apple Silicon，macOS 27.0.1（26A434），原正式安装 0.4.8 / 4008。
+- 原版现场复现：状态页显示“无法确定全局休眠开关”；确认退出后显示“未能退出 SleepGuard / 无法确定全局休眠开关”。进程采样显示主线程处于正常 AppKit 事件循环，没有死锁。
+- 系统 `pmset -g` 含全局设置标题而省略 `SleepDisabled`；Apple 开源 `pmset/pmset.m` 的 `show_system_power_settings` 只在字典包含该可选覆盖时输出字段。
+- Go 回归覆盖显式 0/1、覆盖未设置、全局字典含其他键、空输出、缺少全局标题、字段缺值和非法值。`make test check check-ui`、`make app`、`python3 scripts/check-package.py` 均通过。
+- `python3 scripts/check-login-startup.py` 的 13 个生产 GuardModel 场景全部通过；新增监控停止和运行两种状态下的状态查询失败退出场景。使用私有配置、假登录项适配器和自有临时后台，不修改系统登录项。
+- `/Applications/SleepGuard.app` 安装本机修复构建后，原生界面显示当前电源、休眠时间、应用请求；点击“启动监控”显示“监控运行中”及成功采样时间；确认“退出并停止监控”后，GUI 与真实 Go 后台全部退出。最终保持应用关闭。
+- 用户配置 SHA-256 不变；原有两条历史及既有 incidents/snoozes/temporary_holds/control_resets 行逐条一致，数据库 quick_check 为 ok。原版已备份；未发布新版本。多显示器、Intel 原生交互及未来正式版本升级未验收。

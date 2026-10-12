@@ -1,7 +1,6 @@
-SleepGuard 0.4.8 fixes an empty power assertion snapshot being reported as a monitoring failure and improves status feedback.
+SleepGuard 0.4.9 fixes monitoring startup and quitting when macOS omits an unset global sleep override.
 
-- A successful IOKit read with no per-process assertions is treated as an empty snapshot, so the monitor continues sampling.
-- The most recent monitoring error shows its full date and time. It can be dismissed, stays hidden across refreshes and app restarts, and reappears for a new error.
-- Confirmation messages, including manual refresh success, float over the management window instead of moving its content.
+- Some Macs return valid power settings without a `SleepDisabled` field. SleepGuard now treats this optional, unset override as allowing sleep, so status refresh and monitoring can start normally. Unreadable settings and invalid explicit values still report an error.
+- Quitting verifies that SleepGuard's own monitor has stopped without requiring a fresh power snapshot. A failed status query no longer leaves the app unable to quit.
 
-The native empty-result regression check, Go race tests, Swift checks, and package validation cover this release. Existing rules, configuration, and event history are retained. Apple Silicon and Intel installers use ad-hoc app signing without Apple notarization. Sparkle verifies the update feed and downloaded package with the existing Ed25519 key.
+Regression checks cover missing and invalid sleep overrides, and quitting during status failures with the monitor running or stopped. Go race tests, Swift checks, package validation, and native Apple Silicon startup, sampling, and quit checks passed. Existing rules, configuration, and event history are retained. Apple Silicon and Intel installers use ad-hoc app signing without Apple notarization. Sparkle verifies the update feed and downloaded package with the existing Ed25519 key.

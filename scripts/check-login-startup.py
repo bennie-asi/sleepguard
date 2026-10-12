@@ -90,6 +90,9 @@ with tempfile.TemporaryDirectory(prefix='sleepguard-login-startup-') as director
         if operation == ['ui', 'config']:
             print((root / 'config.json').read_text())
         elif operation == ['ui', 'status']:
+            if (state / 'fail-status').exists():
+                print('无法确定全局休眠开关', file=sys.stderr)
+                raise SystemExit(1)
             result = json.loads((root / 'status.json').read_text())
             result['watcher_running'] = (state / 'watcher').read_text() == 'running'
             result['config_path'], result['state_dir'] = str(config), str(state)
@@ -119,6 +122,7 @@ with tempfile.TemporaryDirectory(prefix='sleepguard-login-startup-') as director
 
     for mode in ['manual', 'login-disabled', 'login-enabled', 'already-running', 'recovery-stopped',
                  'recovery-expired', 'recovery-corrupt', 'disable-preserves-monitor', 'quit-preserves-login',
-                 'update-preparation-stopped', 'update-preparation-running']:
+                 'update-preparation-stopped', 'update-preparation-running',
+                 'quit-status-failure-stopped', 'quit-status-failure-running']:
         check(mode)
 print('Production login startup checks passed using a fake registry; system login items untouched.')

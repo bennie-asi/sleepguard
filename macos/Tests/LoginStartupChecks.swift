@@ -34,12 +34,13 @@ extension Notification.Name {
     @MainActor private static func run(_ mode: String, state: URL, login: LoginItemController) async throws {
         let modes = ["manual", "login-disabled", "login-enabled", "already-running", "recovery-stopped",
                      "recovery-expired", "recovery-corrupt", "disable-preserves-monitor", "quit-preserves-login",
-                     "update-preparation-stopped", "update-preparation-running"]
+                     "update-preparation-stopped", "update-preparation-running",
+                     "quit-status-failure-stopped", "quit-status-failure-running"]
         try check(modes.contains(mode), "unknown scenario")
         await login.setEnabled(mode != "login-disabled")
         try check(login.failure == nil, login.failure ?? "")
         try check(login.enabled == (mode != "login-disabled"), "unexpected fixture login item status")
-        let initiallyRunning = ["already-running", "disable-preserves-monitor", "update-preparation-running"].contains(mode)
+        let initiallyRunning = ["already-running", "disable-preserves-monitor", "update-preparation-running", "quit-status-failure-running"].contains(mode)
         try Data("stopped".utf8).write(to: state.appendingPathComponent("watcher"))
         if mode == "recovery-stopped" || mode == "recovery-expired" {
             try UpdateRecovery(previousBuild: "0", watcherWasRunning: false,
@@ -57,7 +58,7 @@ extension Notification.Name {
             }
         }
         let baselineStarts = try monitorCalls(state, operation: "watch")
-        let manual = ["manual", "disable-preserves-monitor", "update-preparation-stopped", "update-preparation-running"].contains(mode)
+        let manual = ["manual", "disable-preserves-monitor", "update-preparation-stopped", "update-preparation-running", "quit-status-failure-stopped", "quit-status-failure-running"].contains(mode)
         await model.start(launchedAtLogin: !manual)
         let shouldStart = ["login-enabled", "recovery-expired", "recovery-corrupt", "quit-preserves-login"].contains(mode)
         let expectedRunning = shouldStart || initiallyRunning
@@ -73,6 +74,16 @@ extension Notification.Name {
             let afterDisable = try await model.backend.status()
             try check(afterDisable.watcherRunning, "disabling login stopped the current monitor")
             try check(try monitorCalls(state, operation: "monitor-exited") == 0, "disabling login stopped the child")
+        } else if mode.hasPrefix("quit-status-failure-") {
+            try Data().write(to: state.appendingPathComponent("fail-status"))
+            await model.refresh()
+            try check(model.refreshFailure == "无法确定全局休眠开关", "status failure was not reproduced")
+            try await model.stopForQuit()
+            try check(!AppMonitor.shared.running && !AppMonitor.shared.monitoringRequested, "quit left the monitor owner active")
+            try check(try String(contentsOf: state.appendingPathComponent("watcher"), encoding: .utf8) == "stopped", "quit left the child running")
+            try check(try monitorCalls(state, operation: "monitor-exited") == (initiallyRunning ? 1 : 0), "quit stopped the wrong number of workers")
+            model.loginItem.refresh()
+            try check(model.loginItem.enabled, "quit changed login settings")
         } else if mode == "quit-preserves-login" {
             try await model.stopForQuit()
             let afterQuit = try await model.backend.status()

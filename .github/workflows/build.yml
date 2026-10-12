@@ -107,6 +107,7 @@ jobs:
         run: |
           make dmg
           python3 scripts/check-package.py
+          python3 scripts/check-login-startup.py
       - name: Optional notarization
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}

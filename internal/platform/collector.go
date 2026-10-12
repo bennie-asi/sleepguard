@@ -241,9 +241,16 @@ func ValidDelegation(p model.Process, created time.Time) bool {
 }
 
 func ParseSleepDisabled(text string) (bool, error) {
+	hasSystemSettings := false
 	for _, line := range strings.Split(text, "\n") {
+		if strings.TrimSpace(line) == "System-wide power settings:" {
+			hasSystemSettings = true
+		}
 		fields := strings.Fields(line)
-		if len(fields) >= 2 && strings.EqualFold(fields[0], "SleepDisabled") {
+		if len(fields) > 0 && strings.EqualFold(fields[0], "SleepDisabled") {
+			if len(fields) != 2 {
+				return false, fmt.Errorf("全局休眠开关值无效")
+			}
 			switch fields[1] {
 			case "0":
 				return false, nil
@@ -253,6 +260,11 @@ func ParseSleepDisabled(text string) (bool, error) {
 				return false, fmt.Errorf("全局休眠开关值无效")
 			}
 		}
+	}
+	// pmset prints this optional override only when the system settings contain
+	// it. A successfully read dictionary without the key leaves sleep enabled.
+	if hasSystemSettings {
+		return false, nil
 	}
 	return false, fmt.Errorf("无法确定全局休眠开关")
 }
