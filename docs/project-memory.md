@@ -160,3 +160,9 @@
 - 用户反馈搜索中出现两个 SleepGuard。现场 Spotlight 文件索引只返回 `/Applications/SleepGuard.app`，但 LaunchServices 仍保留已不存在的 `work/log-rotation/SleepGuard.app`（0.4.3）及正式安装（0.4.7）两条同名应用记录。此前删除测试文件时漏清了旧注册项；先前“已清理”不应被理解为所有历史注册项都已回读确认。
 - 使用 `lsregister -u` 精确移除旧日志轮转预览路径，同时移除已不存在的 `sleepguard-build-guard-zx0nlp3p/Fixture.app` 注册及被误识别为应用的 `~/Library/HTTPStorages/io.sleepguard.app` 注册。HTTP 缓存目录本身保留，正式应用、配置、历史和运行状态均未修改；未重建全局注册库或后台项目数据库。
 - 清理后直接回读 LaunchServices，`io.sleepguard.app` 只剩 `/Applications/SleepGuard.app`，版本 0.4.7；发布清理步骤已补充“删除前取消精确路径注册，删除后回读应用列表和文件索引”。搜索界面的视觉复查未完成，界面工具未能打开 Spotlight。
+
+## 2026-10-12 v0.4.8 监控误报与状态提示
+
+- `IOPMCopyAssertionsByProcess` 返回成功码 `0`、但没有进程断言时输出 `NULL` 字典；旧桥接代码把空结果误报成采集失败。0.4.8 将此组合视为空断言列表，非零返回码仍保留真实错误。
+- 最近监控错误可用叉号关闭，关闭时间写入应用偏好；同一错误刷新及重开后继续隐藏，新错误仍显示。操作成功提示改为窗口右下角悬浮提示，不挤动状态内容。隔离配置的原生预览应用完成实际界面验收。
+- 发布提交 `d47f34ee3ef96a7257df4d757f48a5e7633c0e3a` 已推送到 `main` 和不可变标签 `v0.4.8`。双架构流水线、包检查、同批 CI 安装包的 Sparkle 签名与公开六份资产验证通过；[正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.8) 已标记 Latest。正式安装的 0.4.7 已发现 0.4.8，但活动中的全屏黑屏阻止安装；跨版本本机升级仍待验收。
