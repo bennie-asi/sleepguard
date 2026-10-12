@@ -28,23 +28,30 @@ static id clean(id value) {
     return [value description] ?: @"";
 }
 
-char *sg_snapshot(void) {
-    @autoreleasepool {
-        NSMutableDictionary *result=[NSMutableDictionary dictionary];
-        CFDictionaryRef raw=NULL;
-        IOReturn rc=IOPMCopyAssertionsByProcess(&raw);
-        if(rc!=kIOReturnSuccess || !raw) {
-            result[@"error"]=[NSString stringWithFormat:@"IOPMCopyAssertionsByProcess: %d",rc];
-        } else {
-            NSMutableArray *rows=[NSMutableArray array];
+static void sg_add_assertions(NSMutableDictionary *result, IOReturn rc, CFDictionaryRef raw) {
+    if(rc!=kIOReturnSuccess) {
+        result[@"error"]=[NSString stringWithFormat:@"IOPMCopyAssertionsByProcess: %d",rc];
+    } else {
+        NSMutableArray *rows=[NSMutableArray array];
+        // IOKit may return success with no dictionary when no process has assertions.
+        if(raw) {
             for(id pid in (NSDictionary *)raw) {
                 for(NSDictionary *props in [(NSDictionary *)raw objectForKey:pid]) {
                     [rows addObject:@{@"pid":@([pid intValue]),@"properties":clean(props)}];
                 }
             }
-            result[@"assertions"]=rows;
-            CFRelease(raw);
         }
+        result[@"assertions"]=rows;
+    }
+    if(raw) CFRelease(raw);
+}
+
+char *sg_snapshot(void) {
+    @autoreleasepool {
+        NSMutableDictionary *result=[NSMutableDictionary dictionary];
+        CFDictionaryRef raw=NULL;
+        IOReturn rc=IOPMCopyAssertionsByProcess(&raw);
+        sg_add_assertions(result,rc,raw);
         result[@"idle_seconds"]=@(CGEventSourceSecondsSinceLastEventType(kCGEventSourceStateHIDSystemState,kCGAnyInputEventType));
         CGDirectDisplayID displays[32];uint32_t count=0;
         CGError err=CGGetOnlineDisplayList(32,displays,&count);

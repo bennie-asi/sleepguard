@@ -75,6 +75,7 @@ import UserNotifications
             }
         }
     }
+    @Published private var dismissedWatcherErrorAt = ""
     @Published private(set) var monitorOperation: MonitorOperation?
     @Published private(set) var refreshing = false
     @Published private(set) var refreshFailure: String?
@@ -96,6 +97,7 @@ import UserNotifications
 
     init(loginItem: LoginItemController = LoginItemController()) {
         self.loginItem = loginItem
+        dismissedWatcherErrorAt = UserDefaults.standard.string(forKey: "dismissedWatcherErrorAt") ?? ""
     }
 
     var dirtyRules: Bool { rules != savedRules || autoActions != savedAutoActions }
@@ -123,6 +125,16 @@ import UserNotifications
         switch permission { case .authorized, .provisional: "已授权"; case .denied: "权限已关闭"; default: "尚未授权" }
     }
     var monitoringState: MonitoringState { MonitoringState(watcherRunning: status?.watcherRunning, pausedUntil: status?.pausedDate) }
+    var recentWatcherError: WatcherHealth? {
+        guard let health = status?.watcherHealth, !health.lastError.isEmpty,
+              health.lastErrorAt != dismissedWatcherErrorAt else { return nil }
+        return health
+    }
+    func dismissRecentWatcherError() {
+        guard let health = recentWatcherError else { return }
+        dismissedWatcherErrorAt = health.lastErrorAt
+        UserDefaults.standard.set(health.lastErrorAt, forKey: "dismissedWatcherErrorAt")
+    }
     var monitoringWarning: String? {
         guard status?.watcherRunning == true else { return nil }
         if let refreshFailure { return "状态读取失败，暂时无法确认监控采样：" + refreshFailure }
@@ -160,7 +172,7 @@ import UserNotifications
         case .paused:
             return "暂停至 \(ClockText.time(status.pausedUntil))。" + (status.watcherRunning ? "继续采样，可提前恢复。" : "监控未运行，可恢复并启动。")
         case .stopped:
-            if let health = status.watcherHealth, !health.lastError.isEmpty { return "最近监控错误：" + health.lastError }
+            if let health = recentWatcherError { return "最近监控错误：" + health.lastError }
             return "启动后持续检查，关闭窗口后仍会监控。"
         case .running:
             if status.watcherHealth?.status == "starting" { return "进程已启动，正在等待首次采样完成。" }

@@ -10,6 +10,9 @@ xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx
   "$project_dir/macos/Sources/SleepGuard/MonitoringState.swift" \
   "$project_dir/macos/Tests/MonitoringStateChecks.swift"
 "$check_dir/monitoring-check"
+clang -framework Foundation -framework AppKit -framework IOKit -framework CoreGraphics \
+  -o "$check_dir/native-assertion-check" "$project_dir/macos/Tests/NativeAssertionChecks.m"
+"$check_dir/native-assertion-check"
 xcrun swiftc -swift-version 6 -parse-as-library -target "$arch_name-apple-macosx13.0" \
   -module-cache-path "$project_dir/work/swift-cache" \
   -o "$check_dir/config-edits-check" \

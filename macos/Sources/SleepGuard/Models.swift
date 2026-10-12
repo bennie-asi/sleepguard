@@ -210,6 +210,7 @@ enum ClockText {
     }
     static func time(_ value: String) -> String { date(value)?.formatted(date: .omitted, time: .shortened) ?? "—" }
     static func preciseTime(_ value: String) -> String { date(value)?.formatted(.dateTime.hour().minute().second()) ?? "—" }
+    static func fullDateTime(_ value: String) -> String { date(value)?.formatted(.dateTime.year().month().day().hour().minute().second()) ?? "—" }
     static func historyTime(_ value: String) -> String {
         guard let date = date(value) else { return "—" }
         let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd\nHH:mm"

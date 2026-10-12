@@ -14,10 +14,34 @@ struct AppIcon: View {
 struct QuietNotice: View {
     var text: String
     var warning = false
+    var onDismiss: (() -> Void)? = nil
     var body: some View {
-        Text(text).font(.system(size: 12)).foregroundStyle(warning ? Color.orange : .secondary)
-            .frame(maxWidth: .infinity, alignment: .leading).padding(11)
+        HStack(alignment: .center, spacing: 10) {
+            Text(text).font(.system(size: 12)).foregroundStyle(warning ? Color.orange : .secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let onDismiss {
+                Button(action: onDismiss) { Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)) }
+                    .buttonStyle(HoverButtonStyle()).foregroundStyle(.secondary)
+                    .accessibilityLabel("关闭最近错误提示")
+            }
+        }.padding(11)
             .background(warning ? Color.orange.opacity(0.09) : Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+struct InformationToast: View {
+    let text: String
+    let onDismiss: () -> Void
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
+            Text(text).font(.caption).frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: onDismiss) { Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)) }
+                .buttonStyle(HoverButtonStyle()).foregroundStyle(.secondary).accessibilityLabel("关闭提示")
+        }.padding(12)
+            .frame(width: 360)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.1), lineWidth: 1))
+            .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
     }
 }
 struct SectionBox<Content: View>: View {
@@ -254,16 +278,6 @@ struct ManagementView: View {
                 }
             }.padding(12)
             Divider()
-            if let information = model.information {
-                HStack(alignment: .center, spacing: 8) {
-                    Image(systemName: "checkmark.circle").foregroundStyle(Color.accentColor)
-                    Text(information).font(.caption)
-                    Spacer()
-                    Button { model.information = nil } label: { Image(systemName: "xmark").font(.caption) }
-                        .buttonStyle(HoverButtonStyle()).foregroundStyle(.secondary).accessibilityLabel("关闭提示")
-                }.padding(.horizontal, 20).padding(.vertical, 10).background(Color.accentColor.opacity(0.06))
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     switch model.tab {
@@ -275,6 +289,12 @@ struct ManagementView: View {
                     case .updates: UpdatePage(updater: model.updater)
                     }
                 }.frame(maxWidth: 760, alignment: .leading).padding(20).frame(maxWidth: .infinity)
+            }.overlay(alignment: .bottomTrailing) {
+                if let information = model.information {
+                    InformationToast(text: information) { model.information = nil }
+                        .padding(16)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
             }.id(model.tab).transition(.opacity)
             if model.tab == .rules || model.tab == .settings {
                 Divider()
@@ -317,8 +337,10 @@ struct StatusPage: View {
             if let health = status.watcherHealth {
                 Text(health.hasSuccess ? "监控最近完成采样：\(ClockText.preciseTime(health.lastSuccess))" : "监控尚无成功采样记录")
                     .font(.caption).foregroundStyle(.secondary)
-                if !health.lastError.isEmpty {
-                    QuietNotice(text: "监控错误（\(ClockText.preciseTime(health.lastErrorAt))）：\(health.lastError)", warning: true)
+                if let recentError = model.recentWatcherError {
+                    QuietNotice(text: "最近监控错误（\(ClockText.fullDateTime(recentError.lastErrorAt))）：\(recentError.lastError)", warning: true) {
+                        model.dismissRecentWatcherError()
+                    }
                 }
             }
             if model.applicationCandidates.isEmpty { EmptyStateRow(icon: "checkmark.shield", title: "暂无阻塞休眠的应用", detail: "系统和外设请求可在下方展开查看。") }
