@@ -367,12 +367,27 @@ CI 已覆盖 macOS 15 上的 Apple Silicon 与 Intel 构建及上述检查，尚
 - `/Applications/SleepGuard.app` 安装本机修复构建后，原生界面显示当前电源、休眠时间、应用请求；点击“启动监控”显示“监控运行中”及成功采样时间；确认“退出并停止监控”后，GUI 与真实 Go 后台全部退出。最终保持应用关闭。
 - 用户配置 SHA-256 不变；原有两条历史及既有 incidents/snoozes/temporary_holds/control_resets 行逐条一致，数据库 quick_check 为 ok。原版已备份；未发布新版本。多显示器、Intel 原生交互及未来正式版本升级未验收。
 
-## 事件历史分类与分页（2026-10-16，工作区未发布）
+## 事件历史分类与分页（2026-10-16，已随 0.4.10 发布）
 
 - `make test check check-ui` 通过。新增 Go 回归覆盖旧版 100 条之外的完整翻页、分类及顺序、交错通知轮次不拆分、空轮次不合并、新事件不挤动快照、清理后的页码回退、参数边界、空结果及旧表迁移；查询前后原事件一致。Swift 检查覆盖旧页不自动刷新、重开保留页码、筛选失败保留正确的旧分类和内容、筛选/页大小回到第一页、刷新重新获取快照及通知组标题。
 - 使用独立 `APP_OUTPUT` 完成 `make app`，`scripts/check-package.py` 通过严格签名与隔离配置检查。没有替换 `/Applications/SleepGuard.app` 或修改正式配置、历史及监控状态。
 - 在独立 SQLite 中生成 100,000 条事件，合并为 83,333 组，其中通知 16,667 组。真实内置 Go CLI 首次查询含两份索引建立耗时约 1,049 ms；后续全部末页约 172 ms、通知首页/末页约 189/191 ms，均只解码当前页（默认 20 组，全量分类 16–24 条原始事件，通知分类 14–40 条）。原 `history --limit 30` 仍返回 30 条事件数组。这是本机单次测量，不代表所有硬件耗时。
 - 隔离 Bundle ID、配置和数据库的原生应用中，实际点击历史入口后显示第 1/4,167 页；“最后一页”直接到第 4,167 页，通知分类显示第 1/834 页。输入 200 并点“前往”到第 200 页；切换每页 50 组后回到第 1/334 页。长页滚动时分类、计数和分页栏保持可见；点下一页后滚动条回到 0。空“其他”分类显示空状态、第 1/1 页及禁用的边界按钮。同轮成功和失败渠道显示在完整通知组中。
-- 本轮验证为 Apple Silicon 本机开发构建；未发布新版本，Intel 和 macOS 13 原生交互仍待验收。
+- 开发阶段验证为 Apple Silicon 本机构建；正式发布证据见下方，Intel 和 macOS 13 原生交互仍待验收。
 - 验收应用已退出；独立构建、预览副本、10 万条测试数据、输出日志及测试偏好/缓存已清理。删除前注销两份临时 App 的精确路径，删除后回读 LaunchServices 和 Spotlight，未残留本轮临时应用登记。
 - 准备发布 0.4.10 前已合入远端正式 0.4.9 的启动与退出修复，并重新通过 Go race/vet、Swift 检查、0.4.10 / 4010 独立 arm64 App 构建、严格包检查及 13 项生产 GuardModel 启动/退出场景。
+
+## v0.4.10 正式发布证据（2026-10-16）
+
+- [正式 Release](https://github.com/bennie-asi/sleepguard/releases/tag/v0.4.10) 于 2026-10-16 11:23（Asia/Shanghai）公开，API 回读 `draft=false`、`prerelease=false` 且为 Latest，六份上传资产均为 `uploaded`。
+- 发布提交与不可变标签 `v0.4.10` 对应 `51a7345a865d1b4c774f759a996da4afc5b76533`，版本 `0.4.10` / build `4010`，包含事件历史分类分页及合入的 0.4.9 启动/退出修复。[标签流水线](https://github.com/bennie-asi/sleepguard/actions/runs/38844413235) 的 arm64、x86_64 与 release 任务全部成功；两种架构通过 Go race/vet、Swift 检查、安装包构建、严格包检查及 13 项生产 GuardModel 启动/退出场景。
+- Actions 使用已配置的 Sparkle Secret 对同批 CI 安装包和清单签名后直接发布。CI artifacts：arm64 `12022848057`，x86_64 `12022883918`；下载 ZIP digest 通过。六份公开资产与 CI 文件逐字节一致，也与 GitHub digest 及两份安装包 checksum 一致。
+- CryptoKit 使用客户端固定 `SUPublicEDKey` 独立验证两份 DMG 与两份清单的 Ed25519 签名通过。清单版本、构建号、下载地址、文件长度均正确；两个 `releases/latest/download/appcast-*.xml` 与本次签署清单逐字节一致，回读为 `0.4.10 / 4010`。
+- 本轮仍为 ad-hoc Apple 签名，未做 Developer ID 和公证。未替换本机正式安装或修改用户配置、历史和运行状态；真实跨版本升级、Intel 原生界面及多显示器交互仍未验收。
+
+- 本轮独立本地构建、CI ZIP/DMG、下载清单、校验程序及发布暂存目录均已清理；保留依赖和编译缓存，未残留本轮临时应用登记。
+
+| 架构 | 公开 DMG SHA-256 |
+| --- | --- |
+| arm64 | `8db988e482031712fe0586e1307c906db11681326db5dd6eee46b48c9aac4b71` |
+| x86_64 | `ee7a4b690441c1d2e951c095939497ee59421c18d6f5375da86bce62c2a0c887` |
