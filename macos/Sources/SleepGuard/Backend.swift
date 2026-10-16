@@ -44,7 +44,7 @@ actor GoBackend {
     }
     func logFailure() async -> String? { await AppMonitor.shared.logFailure }
     func status() async throws -> GuardStatus { try decoder.decode(GuardStatus.self, from: await run(["ui", "status"])) }
-    func history() async throws -> [HistoryEvent] { try decoder.decode([HistoryEvent].self, from: await run(["history", "--limit", "100"])) }
+    func history(_ query: HistoryQuery) async throws -> HistoryResult { try decoder.decode(HistoryResult.self, from: await run(query.arguments)) }
     func processes() async throws -> [GuardProcess] { try decoder.decode([GuardProcess].self, from: await run(["ui", "processes"], timeout: 25)) }
     func pause(minutes: Int) async throws { _ = try await run(["snooze", "all", "--for", "\(minutes)m"]) }
     func resume() async throws { _ = try await run(["ui", "resume"]) }

@@ -43,6 +43,24 @@ func watcherRunning(dir string) bool {
 }
 func addDesktopCommands(root *cobra.Command, path, dir *string) {
 	ui := &cobra.Command{Use: "ui", Short: "原生应用 JSON 接口"}
+	var historyQuery store.HistoryQuery
+	history := &cobra.Command{Use: "history", Args: cobra.NoArgs, Short: "按分类分页查看事件历史", RunE: func(cmd *cobra.Command, _ []string) error {
+		db, e := store.Open(*dir)
+		if e != nil {
+			return e
+		}
+		defer db.Close()
+		page, e := db.QueryHistory(cmd.Context(), historyQuery)
+		if e != nil {
+			return e
+		}
+		return output(page)
+	}}
+	history.Flags().StringVar(&historyQuery.Category, "category", "all", "事件分类：all、monitor、notification、action、control、other")
+	history.Flags().IntVar(&historyQuery.Page, "page", 1, "页码")
+	history.Flags().IntVar(&historyQuery.PageSize, "page-size", 20, "每页记录组数（1..100）")
+	history.Flags().Int64Var(&historyQuery.SnapshotID, "snapshot-id", 0, "浏览快照的最大事件 ID，0 表示最新")
+	ui.AddCommand(history)
 	ui.AddCommand(&cobra.Command{Use: "manual-action", RunE: func(cmd *cobra.Command, _ []string) error {
 		var request control.Request
 		decoder := json.NewDecoder(io.LimitReader(cmd.InOrStdin(), 64*1024))

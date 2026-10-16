@@ -68,6 +68,11 @@ CREATE TABLE IF NOT EXISTS control_resets (scope TEXT PRIMARY KEY, version INTEG
 			return nil, e
 		}
 	}
+	if _, e = db.Exec(`CREATE INDEX IF NOT EXISTS events_history_category ON events((` + historyCategory + `),id DESC);
+CREATE INDEX IF NOT EXISTS events_history_group ON events((` + historyGroup + `),id DESC);`); e != nil {
+		db.Close()
+		return nil, e
+	}
 	return s, nil
 }
 func (s *Store) Close() error { return s.db.Close() }
@@ -139,23 +144,7 @@ func (s *Store) History(limit int) ([]model.Event, error) {
 		return nil, e
 	}
 	defer r.Close()
-	out := []model.Event{}
-	for r.Next() {
-		var v model.Event
-		var at int64
-		var data string
-		if e = r.Scan(&v.ID, &at, &v.Incident, &v.Kind, &v.Message, &data, &v.Label); e != nil {
-			return nil, e
-		}
-		v.At = time.Unix(0, at)
-		if data != "{}" {
-			if e = json.Unmarshal([]byte(data), &v.Delivery); e != nil {
-				return nil, e
-			}
-		}
-		out = append(out, v)
-	}
-	return out, r.Err()
+	return scanHistory(r)
 }
 func (s *Store) Snooze(scope string, until time.Time) error {
 	return s.WithControlLock(context.Background(), func() error { return s.snooze(scope, until) })

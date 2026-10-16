@@ -60,7 +60,7 @@ import UserNotifications
     @Published var autoActions = false
     @Published var monitor: MonitorConfig?
     @Published var actions: ActionConfig?
-    @Published var events: [HistoryEvent] = []
+    let history: HistoryModel
     @Published var catalog: [CatalogApp] = []
     @Published var catalogLoading = false
     @Published var busy = false
@@ -80,7 +80,6 @@ import UserNotifications
     @Published private(set) var refreshing = false
     @Published private(set) var refreshFailure: String?
     @Published private(set) var monitorFailure: String?
-    @Published private(set) var refreshingHistory = false
     @Published private(set) var quitting = false
     @Published var permission: UNAuthorizationStatus = .notDetermined
     @Published var channelResults: [String: Delivery] = [:]
@@ -97,6 +96,8 @@ import UserNotifications
 
     init(loginItem: LoginItemController = LoginItemController()) {
         self.loginItem = loginItem
+        let backend = self.backend
+        history = HistoryModel { query in try await backend.history(query) }
         dismissedWatcherErrorAt = UserDefaults.standard.string(forKey: "dismissedWatcherErrorAt") ?? ""
     }
 
@@ -180,15 +181,6 @@ import UserNotifications
         case .unavailable: return "正在读取…"
         }
     }
-    var historyGroups: [HistoryGroup] {
-        var groups: [HistoryGroup] = [], indices: [String: Int] = [:]
-        for event in events {
-            let key = event.delivery?.roundId ?? "event-\(event.id)"
-            if let index = indices[key] { groups[index].events.append(event) }
-            else { indices[key] = groups.count; groups.append(HistoryGroup(events: [event])) }
-        }
-        return groups
-    }
     func start(launchedAtLogin: Bool = false) async {
         guard !started else { return }; started = true
         busy = true
@@ -269,8 +261,8 @@ import UserNotifications
         }
     }
     func reloadHistory() async {
-        guard !refreshingHistory, !quitting else { return }; refreshingHistory = true; defer { refreshingHistory = false }
-        do { events = try await backend.history() } catch { self.error = error.localizedDescription }
+        guard !quitting else { return }
+        await history.refreshIfAtLatest()
     }
     func prepareCatalog() async {
         guard !catalogLoading else { return }; catalogLoading = true; defer { catalogLoading = false }

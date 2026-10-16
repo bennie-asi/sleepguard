@@ -179,6 +179,16 @@ struct HistoryEvent: Codable, Identifiable, Sendable {
 struct HistoryGroup: Identifiable {
     var events: [HistoryEvent]
     var id: Int64 { events[0].id }
+    static func grouped(_ events: [HistoryEvent]) -> [HistoryGroup] {
+        var groups: [HistoryGroup] = [], indices: [String: Int] = [:]
+        for event in events {
+            let round = event.delivery?.roundId ?? ""
+            let key = round.isEmpty ? "event:\(event.id)" : "round:\(round)"
+            if let index = indices[key] { groups[index].events.append(event) }
+            else { indices[key] = groups.count; groups.append(HistoryGroup(events: [event])) }
+        }
+        return groups
+    }
     var title: String {
         guard events[0].delivery != nil else { return events[0].title }
         let successes = events.filter { $0.delivery?.success == true }.count

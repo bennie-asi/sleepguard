@@ -278,17 +278,23 @@ struct ManagementView: View {
                 }
             }.padding(12)
             Divider()
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
-                    switch model.tab {
-                    case .status: StatusPage(model: model)
-                    case .rules: RulesPage(model: model)
-                    case .notifications: NotificationsPage(model: model)
-                    case .history: HistoryPage(model: model)
-                    case .settings: SettingsPage(model: model)
-                    case .updates: UpdatePage(updater: model.updater)
+            Group {
+                if model.tab == .history {
+                    HistoryPage(history: model.history, stateDirectory: model.status?.stateDir ?? NSHomeDirectory() + "/Library/Application Support/sleepguard", logFailure: model.logFailure)
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            switch model.tab {
+                            case .status: StatusPage(model: model)
+                            case .rules: RulesPage(model: model)
+                            case .notifications: NotificationsPage(model: model)
+                            case .history: EmptyView()
+                            case .settings: SettingsPage(model: model)
+                            case .updates: UpdatePage(updater: model.updater)
+                            }
+                        }.frame(maxWidth: 760, alignment: .leading).padding(20).frame(maxWidth: .infinity)
                     }
-                }.frame(maxWidth: 760, alignment: .leading).padding(20).frame(maxWidth: .infinity)
+                }
             }.overlay(alignment: .bottomTrailing) {
                 if let information = model.information {
                     InformationToast(text: information) { model.information = nil }
@@ -303,7 +309,6 @@ struct ManagementView: View {
         }.background(Color(nsColor: .windowBackgroundColor)).frame(minWidth: 560, minHeight: 520)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.tab)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.information != nil)
-            .onChange(of: model.tab) { _ in if model.tab == .history { Task { await model.reloadHistory() } } }
             .alert("SleepGuard", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("好") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
@@ -486,36 +491,6 @@ struct NotificationsPage: View {
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: enabled)
     }
     @ViewBuilder private func result(_ id: String) -> some View { if let result = model.channelResults[id] { Text(result.message).font(.caption).foregroundStyle(result.success ? Color.green : Color.red).textSelection(.enabled) } }
-}
-struct HistoryPage: View {
-    @ObservedObject var model: GuardModel
-    var body: some View {
-        PageHeading(title: "事件历史", detail: "通知与处理记录") { RefreshButton(isRefreshing: model.refreshingHistory, help: "刷新历史", unavailable: model.busy) { await model.reloadHistory() } }
-        if let failure = model.logFailure { QuietNotice(text: failure, warning: true) }
-        if model.events.isEmpty { EmptyStateRow(icon: "clock.arrow.circlepath", title: "暂无事件", detail: "通知、暂停和处理记录会显示在这里。") }
-        ForEach(model.historyGroups) { group in
-            HStack(alignment: .top, spacing: 14) {
-                Text(ClockText.historyTime(group.events[0].at)).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary).frame(width: 72, alignment: .leading)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(group.title).font(.headline)
-                    if let label = group.events[0].label, !label.isEmpty { Text(label).font(.caption).foregroundStyle(.secondary) }
-                    ForEach(group.events) { event in
-                        if let delivery = event.delivery { Label("\(delivery.channelName) · \(delivery.message)", systemImage: delivery.success ? "checkmark.circle" : "exclamationmark.circle").font(.caption).foregroundStyle(delivery.success ? Color.green : Color.orange) }
-                        else { Text(event.displayMessage).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
-                    }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }.padding(.vertical, 5)
-            Divider()
-        }
-        ExpandableSection("日志与数据") {
-            SectionBox {
-                FileLocationRow(title: "运行日志", path: stateDirectory + "/agent.log", openFile: true)
-                Divider()
-                FileLocationRow(title: "事件数据库", path: stateDirectory + "/state.db")
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
-        }.font(.caption).frame(maxWidth: .infinity, alignment: .leading)
-    }
-    private var stateDirectory: String { model.status?.stateDir ?? NSHomeDirectory() + "/Library/Application Support/sleepguard" }
 }
 struct FileLocationRow: View {
     let title: String
